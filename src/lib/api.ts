@@ -1,5 +1,6 @@
 // API configuration and client
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const DEFAULT_API_BASE_URL = 'https://febackend.site/api.mechanicms.online';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL;
 
 // Helper function to get auth token from localStorage
 const getAuthToken = () => {
@@ -270,7 +271,7 @@ export const api = {
           ...(token && { Authorization: `Bearer ${token}` }),
         };
         
-        return fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/term-reports/export_excel/`, {
+        return fetch(`${process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL}/term-reports/export_excel/`, {
           method: 'POST',
           headers,
           body: JSON.stringify(data)
@@ -289,7 +290,7 @@ export const api = {
           ...(token && { Authorization: `Bearer ${token}` }),
         };
 
-        return fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/term-reports/export_pdf/`, {
+        return fetch(`${process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL}/term-reports/export_pdf/`, {
           method: 'POST',
           headers,
           body: JSON.stringify(data)
@@ -308,7 +309,7 @@ export const api = {
           ...(token && { Authorization: `Bearer ${token}` }),
         };
 
-        return fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/term-reports/export_student_pdf/`, {
+        return fetch(`${process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL}/term-reports/export_student_pdf/`, {
           method: 'POST',
           headers,
           body: JSON.stringify(data)

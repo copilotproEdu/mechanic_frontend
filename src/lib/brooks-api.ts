@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const DEFAULT_API_BASE_URL = 'https://febackend.site/api.mechanicms.online';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL;
 
 const getAuthToken = () => {
   if (typeof window !== 'undefined') {
@@ -133,7 +134,7 @@ export const api = {
         method: 'POST',
       }),
     getCustomerPortal: (token: string) =>
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/customer-portal/${token}/`).then(r => r.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL}/customer-portal/${token}/`).then(r => r.json()),
   },
 
   // Visits
