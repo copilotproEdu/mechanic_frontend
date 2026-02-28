@@ -135,9 +135,9 @@ export default function TeachersPage() {
             console.log('Photo update response:', photoUpdateResponse);
             console.log('Profile photo in response:', photoUpdateResponse?.profile_photo);
             updatedTeacher = photoUpdateResponse;
-          } catch (photoError) {
+          } catch (photoError: any) {
             console.error('Error updating photo:', photoError);
-            alert(`Photo upload error: ${JSON.stringify(photoError?.response?.data || photoError?.message)}`);
+            alert(`Photo upload error: ${JSON.stringify(photoError?.response?.data || photoError?.message || photoError)}`);
           }
         }
         
