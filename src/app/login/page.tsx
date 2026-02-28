@@ -11,17 +11,6 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const fillDemoCredentials = () => {
-    const demoUsers = [
-      { username: 'ceo', password: 'password123' },
-      { username: 'manager', password: 'password123' },
-      { username: 'mechanic', password: 'password123' },
-    ];
-    const selected = demoUsers[Math.floor(Math.random() * demoUsers.length)];
-    setUsername(selected.username);
-    setPassword(selected.password);
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -106,14 +95,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={fillDemoCredentials}
-              className="text-sm text-primary-700 hover:text-primary-800"
-            >
-              Fill demo
-            </button>
+          <div className="flex items-center justify-end">
             <button
               type="submit"
               disabled={loading}
@@ -123,13 +105,6 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
-
-        <div className="mt-6 p-4 bg-gray-50 rounded text-sm text-gray-600">
-          <p className="font-semibold mb-2">Demo Credentials:</p>
-          <p>Username: ceo | Password: password123</p>
-          <p>Username: manager | Password: password123</p>
-          <p>Username: mechanic | Password: password123</p>
-        </div>
       </div>
     </div>
   );
