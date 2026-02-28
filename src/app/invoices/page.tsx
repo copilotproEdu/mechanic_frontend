@@ -88,6 +88,20 @@ export default function InvoicesPage() {
     setSelectedInvoice(null);
   };
 
+  const handleEditInvoice = async (invoice: any) => {
+    try {
+      if (invoice?.id) {
+        await api.invoices.reopen(invoice.id);
+      }
+    } catch {
+      // Continue to edit page even if reopen fails due role restrictions; page will show backend error on save if needed.
+    }
+
+    if (invoice?.car) {
+      router.push(`/cars/${invoice.car}?tab=invoice&editInvoice=1`);
+    }
+  };
+
   const formatCedi = (value: number | string | null | undefined) => {
     const amount = Number(value || 0);
     return `₵${amount.toLocaleString()}`;
@@ -436,6 +450,12 @@ export default function InvoicesPage() {
                           className="px-2.5 py-1 text-xs rounded-md font-medium bg-[#ffe600] text-gray-900 hover:bg-[#f5dc00] disabled:bg-gray-400"
                         >
                           {printingInvoiceId === invoice.id ? 'Printing...' : 'Print'}
+                        </button>
+                        <button
+                          onClick={() => handleEditInvoice(invoice)}
+                          className="px-2.5 py-1 text-xs rounded-md font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                        >
+                          Edit
                         </button>
                       </div>
                     </td>

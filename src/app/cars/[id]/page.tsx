@@ -52,6 +52,35 @@ export default function CarDetailPage() {
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [portalToken, setPortalToken] = useState<string | null>(null);
   const [showPortalModal, setShowPortalModal] = useState(false);
+  const [isEditingInvoice, setIsEditingInvoice] = useState(false);
+  const [workUpdate, setWorkUpdate] = useState('');
+
+  const repairStages = [
+    { value: 'awaiting_diagnostics', label: 'Awaiting Diagnostics' },
+    { value: 'diagnostics_complete', label: 'Diagnostics Complete' },
+    { value: 'awaiting_parts', label: 'Awaiting Parts' },
+    { value: 'in_progress', label: 'Repair In Progress' },
+    { value: 'completed', label: 'Repairs Completed' },
+    { value: 'dispatched', label: 'Ready for Dispatch' },
+    { value: 'awaiting_payment', label: 'Awaiting Payment' },
+    { value: 'paid', label: 'Paid / Closed' },
+    { value: 'reopened', label: 'Reopened' },
+  ];
+
+  const getStatusStyle = (status: string) => {
+    const styles: Record<string, string> = {
+      awaiting_diagnostics: 'bg-blue-50 text-blue-700 border-blue-200',
+      diagnostics_complete: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      awaiting_parts: 'bg-amber-50 text-amber-700 border-amber-200',
+      in_progress: 'bg-yellow-50 text-yellow-800 border-yellow-200',
+      completed: 'bg-green-50 text-green-700 border-green-200',
+      dispatched: 'bg-purple-50 text-purple-700 border-purple-200',
+      awaiting_payment: 'bg-orange-50 text-orange-700 border-orange-200',
+      paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      reopened: 'bg-red-50 text-red-700 border-red-200',
+    };
+    return styles[status] || 'bg-gray-50 text-gray-700 border-gray-200';
+  };
 
   const formatCedi = (value: number | string | null | undefined) => {
     const amount = Number(value || 0);
@@ -216,6 +245,36 @@ export default function CarDetailPage() {
     }
   };
 
+  const handleSaveWorkUpdate = async () => {
+    setActionError('');
+    setStatusUpdating(true);
+    try {
+      await api.cars.update(carId, { reason_for_visit: workUpdate });
+      await refreshCar();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to save work update');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleEditInvoice = async () => {
+    if (!car?.invoice?.id) return;
+    setActionError('');
+    setActionLoading(true);
+    try {
+      await api.invoices.reopen(car.invoice.id);
+      setIsEditingInvoice(true);
+      setShowInvoiceForm(true);
+      setActiveTab('invoice');
+      await refreshCar();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to reopen invoice for editing');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleGeneratePortalToken = async () => {
     setActionError('');
     try {
@@ -323,15 +382,27 @@ export default function CarDetailPage() {
       const outsourcedLaborCost = calculateOutsourcedLaborCost();
       const outsourcedTotal = outsourcedPartsCost + outsourcedLaborCost;
 
-      const newInvoice = await api.invoices.create({
-        car: carId,
-        invoice_number: invoiceForm.invoice_number,
-        parts_cost: partsCost,
-        labor_cost: Number(invoiceForm.labor_cost || 0),
-        outsourced_cost: outsourcedTotal,
-        tax_percentage: 0,
-        due_date: invoiceForm.due_date || null,
-      });
+      let newInvoice;
+      if (isEditingInvoice && car?.invoice?.id) {
+        newInvoice = await api.invoices.update(car.invoice.id, {
+          invoice_number: invoiceForm.invoice_number,
+          parts_cost: partsCost,
+          labor_cost: Number(invoiceForm.labor_cost || 0),
+          outsourced_cost: outsourcedTotal,
+          due_date: invoiceForm.due_date || null,
+          status: 'reopened',
+        });
+      } else {
+        newInvoice = await api.invoices.create({
+          car: carId,
+          invoice_number: invoiceForm.invoice_number,
+          parts_cost: partsCost,
+          labor_cost: Number(invoiceForm.labor_cost || 0),
+          outsourced_cost: outsourcedTotal,
+          tax_percentage: 0,
+          due_date: invoiceForm.due_date || null,
+        });
+      }
 
       // Update local car state instead of refreshing from backend
       if (car) {
@@ -341,6 +412,7 @@ export default function CarDetailPage() {
         });
       }
       setShowInvoiceForm(false);
+      setIsEditingInvoice(false);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to create invoice');
     } finally {
@@ -467,6 +539,39 @@ export default function CarDetailPage() {
   }, [carId]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const query = new URLSearchParams(window.location.search);
+    const requestedTab = query.get('tab');
+    const shouldEditInvoice = query.get('editInvoice') === '1';
+
+    if (requestedTab && ['info', 'diagnostics', 'inventory', 'invoice', 'history'].includes(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+
+    if (shouldEditInvoice) {
+      setActiveTab('invoice');
+      setIsEditingInvoice(true);
+      setShowInvoiceForm(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (car?.reason_for_visit !== undefined) {
+      setWorkUpdate(car.reason_for_visit || '');
+    }
+  }, [car?.reason_for_visit]);
+
+  useEffect(() => {
+    if (isEditingInvoice && car?.invoice) {
+      setInvoiceForm({
+        invoice_number: car.invoice.invoice_number || '',
+        labor_cost: String(car.invoice.labor_cost || ''),
+        due_date: car.invoice.due_date || '',
+      });
+    }
+  }, [isEditingInvoice, car?.invoice]);
+
+  useEffect(() => {
     if (activeTab === 'inventory' && inventoryItems.length === 0) {
       fetchInventoryItems();
     }
@@ -573,43 +678,56 @@ export default function CarDetailPage() {
   return (
     <DashboardLayout userRole={userRole}>
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-          <p className="text-sm text-gray-700 font-medium">
-            {car.make} {car.model}{car.color && ` (${car.color})`} · Plate: {car.number_plate}
-          </p>
-          <select
-            value={car.status}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            disabled={statusUpdating}
-            className="w-full sm:w-auto px-3 py-2 text-sm rounded-lg font-semibold border-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor: car.status === 'new' ? '#dbeafe' : 
-                              car.status === 'in_progress' ? '#fef3c7' :
-                              car.status === 'completed' ? '#dcfce7' :
-                              car.status === 'dispatched' ? '#e9d5ff' :
-                              car.status === 'awaiting_payment' ? '#fed7aa' :
-                              car.status === 'reopened' ? '#fee2e2' : '#f3f4f6',
-              color: car.status === 'new' ? '#1e40af' :
-                    car.status === 'in_progress' ? '#92400e' :
-                    car.status === 'completed' ? '#15803d' :
-                    car.status === 'dispatched' ? '#6b21a8' :
-                    car.status === 'awaiting_payment' ? '#92400e' :
-                    car.status === 'reopened' ? '#991b1b' : '#374151',
-              borderColor: car.status === 'new' ? '#3b82f6' :
-                          car.status === 'in_progress' ? '#f59e0b' :
-                          car.status === 'completed' ? '#22c55e' :
-                          car.status === 'dispatched' ? '#a855f7' :
-                          car.status === 'awaiting_payment' ? '#f97316' :
-                          car.status === 'reopened' ? '#ef4444' : '#d1d5db',
-            }}
-          >
-            <option value="new">New</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="dispatched">Dispatched</option>
-            <option value="awaiting_payment">Awaiting Payment</option>
-            <option value="reopened">Reopened</option>
-          </select>
+        <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-white via-gray-50 to-gray-100 p-4 sm:p-5">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">Car Details</p>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                {car.make} {car.model}{car.color && ` (${car.color})`}
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">Plate: {car.number_plate} • Mileage: {car.mileage} km</p>
+              <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold capitalize ${getStatusStyle(car.status)}`}>
+                <span>Current Stage:</span>
+                <span>{car.status_display || car.status.replace('_', ' ')}</span>
+              </div>
+            </div>
+
+            <div className="w-full lg:w-[360px] space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Repair Stage</label>
+                <select
+                  value={car.status}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  disabled={statusUpdating}
+                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-300 bg-white text-gray-800 font-medium disabled:opacity-50"
+                >
+                  {repairStages.map((stage) => (
+                    <option key={stage.value} value={stage.value}>
+                      {stage.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Admin Work Update</label>
+                <textarea
+                  value={workUpdate}
+                  onChange={(e) => setWorkUpdate(e.target.value)}
+                  rows={3}
+                  placeholder="Type exactly what is currently happening on this repair..."
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white"
+                />
+                <button
+                  onClick={handleSaveWorkUpdate}
+                  disabled={statusUpdating}
+                  className="mt-2 bg-[#ffe600] hover:bg-[#f5dc00] disabled:bg-gray-300 text-gray-900 px-3 py-1.5 rounded-md text-xs font-semibold"
+                >
+                  {statusUpdating ? 'Saving...' : 'Save Work Update'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -657,7 +775,7 @@ export default function CarDetailPage() {
         </div>
 
         {/* Tab Content */}
-        <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4">
+        <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 border border-gray-100">
           {activeTab === 'info' && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1149,16 +1267,31 @@ export default function CarDetailPage() {
                 <p className="text-gray-600">No invoice yet.</p>
               )}
 
+              <div className="flex flex-wrap items-center gap-2">
               {!car.invoice && (
                 <button
-                  onClick={() => setShowInvoiceForm((prev) => !prev)}
+                  onClick={() => {
+                    setIsEditingInvoice(false);
+                    setShowInvoiceForm((prev) => !prev);
+                  }}
                   className="bg-[#ffe600] hover:bg-[#f5dc00] text-gray-900 px-4 py-1.5 text-sm font-medium transition-colors rounded-lg"
                 >
                   Create Invoice
                 </button>
               )}
 
-              {showInvoiceForm && !car.invoice && (
+              {car.invoice && (
+                <button
+                  onClick={handleEditInvoice}
+                  disabled={actionLoading}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-1.5 text-sm font-medium transition-colors rounded-lg"
+                >
+                  {actionLoading ? 'Preparing...' : 'Edit Invoice (Reopen)'}
+                </button>
+              )}
+              </div>
+
+              {showInvoiceForm && (!car.invoice || isEditingInvoice) && (
                 <form onSubmit={handleCreateInvoice} className="space-y-4 border-t pt-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
@@ -1230,7 +1363,7 @@ export default function CarDetailPage() {
                     disabled={actionLoading}
                     className="bg-[#ffe600] hover:bg-[#f5dc00] disabled:bg-gray-400 text-gray-900 px-6 py-2 rounded-lg font-medium"
                   >
-                    {actionLoading ? 'Creating...' : 'Create Invoice'}
+                    {actionLoading ? (isEditingInvoice ? 'Saving...' : 'Creating...') : (isEditingInvoice ? 'Save Invoice Changes' : 'Create Invoice')}
                   </button>
                 </form>
               )}
