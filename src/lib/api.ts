@@ -1,6 +1,6 @@
 // API configuration and client
-const DEFAULT_API_BASE_URL = 'https://febackend.site/api';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL;
+const DEFAULT_API_BASE_URL = 'https://febackend.site/api.mechanicms.online/api/';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
 
 // Helper function to get auth token from localStorage
 const getAuthToken = () => {
