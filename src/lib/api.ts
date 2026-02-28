@@ -226,6 +226,13 @@ export const api = {
       return fetchAPI(`/results/${query}`);
     },
     create: (data: any) => fetchAPI('/results/', { method: 'POST', body: JSON.stringify(data) }),
+    exams: {
+      list: (params?: Record<string, any>) => {
+        const query = params ? '?' + new URLSearchParams(params).toString() : '';
+        return fetchAPI(`/exams/${query}`);
+      },
+      create: (data: any) => fetchAPI('/exams/', { method: 'POST', body: JSON.stringify(data) }),
+    },
     classAverage: (params: Record<string, any>) => {
       const query = '?' + new URLSearchParams(params).toString();
       return fetchAPI(`/results/class_average/${query}`);
