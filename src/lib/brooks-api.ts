@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = 'https://febackend.site/api.mechanicms.online';
+const DEFAULT_API_BASE_URL = 'https://febackend.site/api';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL;
 
 const getAuthToken = () => {
