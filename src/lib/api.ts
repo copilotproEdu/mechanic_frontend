@@ -346,7 +346,7 @@ export const api = {
       return fetchAPI(`/timetable/${query}`);
     },
     create: (data: any) => fetchAPI('/timetable/', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: any) => fetchAPI(`/timetable/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
+    update: (id: string | number, data: any) => fetchAPI(`/timetable/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => fetchAPI(`/timetable/${id}/`, { method: 'DELETE' }),
     byClass: (params: Record<string, any>) => {
       const query = '?' + new URLSearchParams(params).toString();
