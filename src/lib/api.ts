@@ -1,6 +1,7 @@
 // API configuration and client
 const DEFAULT_API_BASE_URL = 'https://febackend.site/api.mechanicms.online/api/';
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL).trim().replace(/\/+$/, '');
+const buildApiUrl = (endpoint: string) => `${API_BASE_URL}/${endpoint.replace(/^\/+/, '')}`;
 
 // Helper function to get auth token from localStorage
 const getAuthToken = () => {
@@ -20,8 +21,9 @@ const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(buildApiUrl(endpoint), {
     ...options,
+    credentials: 'include',
     headers,
   });
 

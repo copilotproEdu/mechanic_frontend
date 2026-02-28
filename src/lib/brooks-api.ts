@@ -1,5 +1,6 @@
 const DEFAULT_API_BASE_URL = 'https://febackend.site/api.mechanicms.online/api/';
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL).trim().replace(/\/+$/, '');
+const buildApiUrl = (endpoint: string) => `${API_BASE_URL}/${endpoint.replace(/^\/+/, '')}`;
 
 const getAuthToken = () => {
   if (typeof window !== 'undefined') {
@@ -18,8 +19,9 @@ const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(buildApiUrl(endpoint), {
     ...options,
+    credentials: 'include',
     headers,
   });
 
