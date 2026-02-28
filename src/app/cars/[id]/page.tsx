@@ -54,6 +54,7 @@ export default function CarDetailPage() {
   const [showPortalModal, setShowPortalModal] = useState(false);
   const [isEditingInvoice, setIsEditingInvoice] = useState(false);
   const [workUpdate, setWorkUpdate] = useState('');
+  const [removingAssignmentId, setRemovingAssignmentId] = useState<string | null>(null);
 
   const repairStages = [
     { value: 'awaiting_diagnostics', label: 'Awaiting Diagnostics' },
@@ -272,6 +273,25 @@ export default function CarDetailPage() {
       setActionError(err instanceof Error ? err.message : 'Failed to reopen invoice for editing');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleRemoveInvoiceInventoryItem = async (assignmentId: string) => {
+    setActionError('');
+    setRemovingAssignmentId(assignmentId);
+    try {
+      await api.carInventory.delete(assignmentId);
+
+      if (car?.inventory_assignments) {
+        setCar({
+          ...car,
+          inventory_assignments: car.inventory_assignments.filter((assignment: any) => assignment.id !== assignmentId),
+        });
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to remove assigned item from invoice');
+    } finally {
+      setRemovingAssignmentId(null);
     }
   };
 
@@ -1293,6 +1313,38 @@ export default function CarDetailPage() {
 
               {showInvoiceForm && (!car.invoice || isEditingInvoice) && (
                 <form onSubmit={handleCreateInvoice} className="space-y-4 border-t pt-4">
+                  {isEditingInvoice && (
+                    <div className="border border-red-200 bg-red-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-semibold text-red-900">Assigned Inventory in Current Invoice</p>
+                        <span className="text-xs text-red-700">Remove incorrect items and re-enter inventory</span>
+                      </div>
+
+                      {car?.inventory_assignments?.length ? (
+                        <div className="space-y-2">
+                          {car.inventory_assignments.map((assignment: any) => (
+                            <div key={assignment.id} className="flex items-center justify-between bg-white border border-red-100 rounded-md px-3 py-2">
+                              <div className="text-sm text-gray-800">
+                                <span className="font-medium">{assignment.inventory_item_name || 'Item'}</span>
+                                <span className="text-gray-600"> · Qty {assignment.quantity} · {formatCedi(Number(assignment.quantity) * Number(assignment.selling_price))}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveInvoiceInventoryItem(assignment.id)}
+                                disabled={removingAssignmentId === assignment.id}
+                                className="px-2.5 py-1 text-xs rounded-md font-semibold bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
+                              >
+                                {removingAssignmentId === assignment.id ? 'Removing...' : 'Remove'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-red-700">No assigned inventory remains in this invoice.</p>
+                      )}
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
                     <input
