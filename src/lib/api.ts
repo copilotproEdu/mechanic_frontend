@@ -1,17 +1,6 @@
 // API configuration and client
-const DEFAULT_API_BASE_URL = 'https://febackend.site/api';
-
-const normalizeApiBaseUrl = (rawUrl?: string) => {
-  const source = (rawUrl || DEFAULT_API_BASE_URL).trim();
-  const corrected = source
-    .replace('api.mechanicms.onlin', 'api.mechanicms.online')
-    .replace('https://febackend.site/api.mechanicms.online/api', 'https://febackend.site/api')
-    .replace('https://febackend.site/api.mechanicms.online', 'https://febackend.site/api');
-
-  return corrected.replace(/\/+$/, '');
-};
-
-const API_BASE_URL = normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
+const DEFAULT_API_BASE_URL = 'https://febackend.site/api.mechanicms.online/api/';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL).trim().replace(/\/+$/, '');
 
 // Helper function to get auth token from localStorage
 const getAuthToken = () => {
