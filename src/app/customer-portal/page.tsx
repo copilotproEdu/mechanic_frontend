@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/brooks-api';
 import Link from 'next/link';
 
-export default function CustomerPortalPage() {
+function CustomerPortalContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   
@@ -260,5 +260,22 @@ export default function CustomerPortalPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CustomerPortalPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="text-center">
+            <div className="text-xl text-gray-600 mb-4">Loading car information...</div>
+            <div className="animate-spin">⏳</div>
+          </div>
+        </div>
+      }
+    >
+      <CustomerPortalContent />
+    </Suspense>
   );
 }

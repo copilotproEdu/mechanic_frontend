@@ -226,6 +226,13 @@ export const api = {
       return fetchAPI(`/results/${query}`);
     },
     create: (data: any) => fetchAPI('/results/', { method: 'POST', body: JSON.stringify(data) }),
+    results: {
+      list: (params?: Record<string, any>) => {
+        const query = params ? '?' + new URLSearchParams(params).toString() : '';
+        return fetchAPI(`/results/${query}`);
+      },
+      create: (data: any) => fetchAPI('/results/', { method: 'POST', body: JSON.stringify(data) }),
+    },
     exams: {
       list: (params?: Record<string, any>) => {
         const query = params ? '?' + new URLSearchParams(params).toString() : '';

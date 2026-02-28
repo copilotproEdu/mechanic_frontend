@@ -13,6 +13,9 @@ interface EnrollmentFormProps {
 interface StudentInfo {
   first_name: string;
   last_name: string;
+  phone?: string;
+  address?: string;
+  parent_email?: string;
   guardian_full_name: string;
   guardian_phone: string;
   guardian_relationship?: string;
@@ -43,6 +46,9 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({ isOpen, onClose, onSubm
       ? {
           first_name: enrollment.first_name || enrollment.student_name?.split(' ')[0] || '',
           last_name: enrollment.last_name || enrollment.student_name?.split(' ').slice(1).join(' ') || '',
+          phone: enrollment.phone || '',
+          address: enrollment.address || '',
+          parent_email: enrollment.parent_email || '',
           guardian_full_name: enrollment.guardian_full_name || enrollment.contact_name || '',
           guardian_phone: enrollment.guardian_phone || enrollment.phone || '',
           guardian_relationship: enrollment.guardian_relationship || '',
@@ -59,6 +65,9 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({ isOpen, onClose, onSubm
       : {
           first_name: '',
           last_name: '',
+          phone: '',
+          address: '',
+          parent_email: '',
           guardian_full_name: '',
           guardian_phone: '',
           guardian_relationship: '',
@@ -133,8 +142,10 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({ isOpen, onClose, onSubm
         const termsData = await api.results.academicTerms.activeTerms();
         const terms = termsData.results || termsData;
         // Extract unique academic years from active terms
-        const years = Array.from(new Set(terms.map((t: any) => t.academic_year)));
-        setAvailableAcademicYears(years.sort().reverse() as string[]);
+        const years: string[] = Array.from(
+          new Set((terms as any[]).map((t: any) => String(t.academic_year)))
+        );
+        setAvailableAcademicYears(years.sort().reverse());
         
         // Set the first (most recent) active academic year
         if (years.length > 0) {
@@ -160,6 +171,9 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({ isOpen, onClose, onSubm
       setStudentInfo({
         first_name: enrollment.first_name || enrollment.student_name?.split(' ')[0] || '',
         last_name: enrollment.last_name || enrollment.student_name?.split(' ').slice(1).join(' ') || '',
+        phone: enrollment.phone || '',
+        address: enrollment.address || '',
+        parent_email: enrollment.parent_email || '',
         guardian_full_name: enrollment.guardian_full_name || '',
         guardian_phone: enrollment.guardian_phone || '',
         guardian_relationship: enrollment.guardian_relationship || '',
@@ -302,10 +316,10 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({ isOpen, onClose, onSubm
       // Get the student ID - handle both object and ID formats
       const getStudentId = () => {
         if (selectedStudent) {
-          return typeof selectedStudent === 'object' ? selectedStudent.id : selectedStudent;
+          return selectedStudent;
         }
         if (enrollment?.student) {
-          return typeof enrollment.student === 'object' ? enrollment.student.id : enrollment.student;
+          return typeof enrollment.student === 'object' ? (enrollment.student as any).id : enrollment.student;
         }
         return null;
       };
@@ -376,7 +390,7 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({ isOpen, onClose, onSubm
             if (enrollment.student) {
               studentId = typeof enrollment.student === 'object' ? enrollment.student.id : enrollment.student;
             } else if (selectedStudent) {
-              studentId = typeof selectedStudent === 'object' ? selectedStudent.id : selectedStudent;
+              studentId = selectedStudent;
             } else if (enrollment.student_id) {
               studentId = enrollment.student_id;
             } else if (enrollment.student_id_number) {
@@ -514,14 +528,10 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({ isOpen, onClose, onSubm
         phone: studentInfo.phone || studentInfo.guardian_phone,
         address: studentInfo.address,
         class_id: studentInfo.class_id,
-        guardian_full_name: studentInfo.guardian_full_name,
-        guardian_phone: studentInfo.guardian_phone,
-        guardian_relationship: studentInfo.guardian_relationship,
         parent_email: studentInfo.parent_email,
         emergency_contact_name: studentInfo.emergency_contact_name,
         emergency_contact_phone: studentInfo.emergency_contact_phone,
         status: studentStatus,
-        academic_year: studentInfo.academic_year,
         profile_photo: photoFile ? photoFile : (photoPreview || undefined),
         // Enrollment data (if needed)
         ...enrollmentPayload,
@@ -546,6 +556,9 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({ isOpen, onClose, onSubm
         setStudentInfo({
           first_name: '',
           last_name: '',
+          phone: '',
+          address: '',
+          parent_email: '',
           guardian_full_name: '',
           guardian_phone: '',
           additional_phones: [],

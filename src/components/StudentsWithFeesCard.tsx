@@ -45,7 +45,8 @@ const StudentsWithFeesCard = () => {
 
         const normalized: OwingStudent[] = [
           ...schoolList.map((item) => {
-            const balance = Number(item.balance ?? (item.amount_due - item.amount_paid - item.discount) ?? 0);
+            const derivedBalance = Number(item.amount_due ?? 0) - Number(item.amount_paid ?? 0) - Number(item.discount ?? 0);
+            const balance = Number(item.balance ?? derivedBalance);
             return {
               id: `school-${item.id}`,
               name: item.student_name || 'Unknown',
@@ -53,11 +54,12 @@ const StudentsWithFeesCard = () => {
               amount: balance,
               dueDate: item.due_date || '',
               priority: mapPriority(item.status, balance, Number(item.amount_due)),
-              feeType: 'school',
+              feeType: 'school' as FeeType,
             };
           }),
           ...feedingList.map((item) => {
-            const balance = Number(item.balance ?? (item.amount_due - item.amount_paid - item.discount) ?? 0);
+            const derivedBalance = Number(item.amount_due ?? 0) - Number(item.amount_paid ?? 0) - Number(item.discount ?? 0);
+            const balance = Number(item.balance ?? derivedBalance);
             return {
               id: `feeding-${item.id}`,
               name: item.student_name || 'Unknown',
@@ -65,7 +67,7 @@ const StudentsWithFeesCard = () => {
               amount: balance,
               dueDate: item.due_date || '',
               priority: mapPriority(item.status, balance, Number(item.amount_due)),
-              feeType: 'feeding',
+              feeType: 'feeding' as FeeType,
             };
           }),
         ];
