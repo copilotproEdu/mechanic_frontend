@@ -187,7 +187,7 @@ export default function CEODashboard() {
               <div className="flex justify-between items-center pt-2">
                 <span className="text-sm text-gray-700 font-semibold">Balance</span>
                 <span className="text-2xl font-bold text-green-600 tabular-nums">
-                  {formatCedi((stats?.total_invoiced_this_month || 0) - (stats?.outstanding_vendor_credit || 0) - (stats?.total_paid_this_month || 0))}
+                  {formatCedi((stats?.total_invoiced_this_month || 0) - (stats?.outstanding_vendor_credit || 0) + (stats?.total_paid_this_month || 0))}
                 </span>
               </div>
             </div>
