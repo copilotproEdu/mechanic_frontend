@@ -167,7 +167,7 @@ export default function CarDetailPage() {
     });
     setInventoryForm({
       inventory_item: '',
-      quantity: 1,
+      quantity: '',
       cost_price: '',
       selling_price: '',
       is_customer_provided: false,
@@ -1237,7 +1237,7 @@ export default function CarDetailPage() {
                         min={1}
                         value={inventoryForm.quantity}
                         onChange={(e) =>
-                          setInventoryForm((prev) => ({ ...prev, quantity: Number(e.target.value || 1) }))
+                          setInventoryForm((prev) => ({ ...prev, quantity: e.target.value }))
                         }
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       />
