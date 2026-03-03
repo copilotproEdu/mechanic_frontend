@@ -39,11 +39,12 @@ export default function CarDetailPage() {
   });
   const [inventoryForm, setInventoryForm] = useState({
     inventory_item: '',
-    quantity: 1,
+    quantity: '',
     cost_price: '',
     selling_price: '',
     is_customer_provided: false,
   });
+  const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
   const [invoiceForm, setInvoiceForm] = useState({
     invoice_number: '',
     labor_cost: '',
@@ -367,21 +368,32 @@ export default function CarDetailPage() {
         return;
       }
 
-      const newAssignment = await api.carInventory.create({
+      const payload = {
         car: carId,
         inventory_item: inventoryForm.inventory_item,
         quantity: Number(inventoryForm.quantity || 1),
         cost_price: Number(inventoryForm.cost_price || 0),
         selling_price: Number(inventoryForm.selling_price || 0),
         is_customer_provided: inventoryForm.is_customer_provided,
-      });
+      };
 
-      // Update local car state instead of refreshing from backend
-      if (car) {
-        setCar({
-          ...car,
-          inventory_assignments: [...(car.inventory_assignments || []), newAssignment]
-        });
+      if (editingAssignmentId) {
+        const updated = await api.carInventory.update(editingAssignmentId, payload);
+        if (car) {
+          setCar({
+            ...car,
+            inventory_assignments: (car.inventory_assignments || []).map((a: any) => a.id === updated.id ? updated : a)
+          });
+        }
+        setEditingAssignmentId(null);
+      } else {
+        const newAssignment = await api.carInventory.create(payload);
+        if (car) {
+          setCar({
+            ...car,
+            inventory_assignments: [...(car.inventory_assignments || []), newAssignment]
+          });
+        }
       }
       setShowInventoryForm(false);
     } catch (err) {
@@ -1101,18 +1113,58 @@ export default function CarDetailPage() {
                         <th className="px-4 py-2.5 text-sm text-gray-600 text-left text-sm font-semibold">Cost Price</th>
                         <th className="px-4 py-2.5 text-sm text-gray-600 text-left text-sm font-semibold">Selling Price</th>
                         <th className="px-4 py-2.5 text-sm text-gray-600 text-left text-sm font-semibold">Total</th>
+                            <th className="px-4 py-2.5 text-sm text-gray-600 text-left text-sm font-semibold">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {car.inventory_assignments.map((assignment: any) => (
-                        <tr key={assignment.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors last:border-b-0">
-                          <td className="px-4 py-2.5 text-sm text-gray-600 font-medium">{assignment.inventory_item_name || 'Item'}</td>
-                          <td className="px-4 py-2.5 text-sm text-gray-600">{assignment.quantity}</td>
-                          <td className="px-4 py-2.5 text-sm text-gray-600">{formatCedi(assignment.cost_price)}</td>
-                          <td className="px-4 py-2.5 text-sm text-gray-600 font-semibold">{formatCedi(assignment.selling_price)}</td>
-                          <td className="px-4 py-2.5 text-sm text-gray-600 font-bold text-gray-800">{formatCedi(Number(assignment.quantity) * Number(assignment.selling_price))}</td>
-                        </tr>
-                      ))}
+                          {car.inventory_assignments.map((assignment: any) => (
+                            <tr key={assignment.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors last:border-b-0">
+                              <td className="px-4 py-2.5 text-sm text-gray-600 font-medium">{assignment.inventory_item_name || 'Item'}</td>
+                              <td className="px-4 py-2.5 text-sm text-gray-600">{assignment.quantity}</td>
+                              <td className="px-4 py-2.5 text-sm text-gray-600">{formatCedi(assignment.cost_price)}</td>
+                              <td className="px-4 py-2.5 text-sm text-gray-600 font-semibold">{formatCedi(assignment.selling_price)}</td>
+                              <td className="px-4 py-2.5 text-sm text-gray-600 font-bold text-gray-800">{formatCedi(Number(assignment.quantity) * Number(assignment.selling_price))}</td>
+                              <td className="px-4 py-2.5 text-sm text-gray-600">
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setInventoryForm({
+                                        inventory_item: String(assignment.inventory_item),
+                                        quantity: String(assignment.quantity),
+                                        cost_price: String(assignment.cost_price || ''),
+                                        selling_price: String(assignment.selling_price || ''),
+                                        is_customer_provided: !!assignment.is_customer_provided,
+                                      });
+                                      setEditingAssignmentId(assignment.id);
+                                      setShowInventoryForm(true);
+                                    }}
+                                    className="bg-[#ffe600] hover:bg-[#f5dc00] text-gray-900 px-3 py-1 text-xs font-medium rounded-lg"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      // Delete assignment
+                                      try {
+                                        await api.carInventory.delete(assignment.id);
+                                        if (car) {
+                                          setCar({
+                                            ...car,
+                                            inventory_assignments: (car.inventory_assignments || []).filter((a: any) => a.id !== assignment.id)
+                                          });
+                                        }
+                                      } catch (err) {
+                                        console.error('Failed to delete assignment', err);
+                                      }
+                                    }}
+                                    className="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1 text-xs font-medium rounded-lg"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
                     </tbody>
                     <tfoot className="bg-gray-50 border-t-2 border-gray-300">
                       <tr>

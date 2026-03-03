@@ -205,6 +205,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ amount }),
       }),
+    addStock: (id: string, data: any) =>
+      fetchAPI(`/inventory/${id}/add_stock/`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   },
 
   // Car Inventory Assignments
@@ -218,6 +223,11 @@ export const api = {
       }),
     delete: (id: string) =>
       fetchAPI(`/car-inventory/${id}/`, { method: 'DELETE' }),
+    update: (id: string, data: any) =>
+      fetchAPI(`/car-inventory/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
   },
 
   // Invoices

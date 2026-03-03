@@ -9,6 +9,13 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [showAddStockModal, setShowAddStockModal] = useState(false);
+  const [addStockForm, setAddStockForm] = useState({
+    inventory_item: '',
+    quantity: '',
+    cost_price: '',
+    selling_price: '',
+  });
   const [submitting, setSubmitting] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState('mechanic');
@@ -195,7 +202,13 @@ export default function InventoryPage() {
   return (
     <DashboardLayout userRole={userRole}>
       <div className="space-y-4">
-        <div className="flex justify-end items-center">
+        <div className="flex justify-end items-center gap-2">
+          <button
+            onClick={() => setShowAddStockModal(true)}
+            className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-900 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+          >
+            Add to stock
+          </button>
           <button 
             onClick={() => {
               handleCancelEdit();
@@ -203,7 +216,7 @@ export default function InventoryPage() {
             }}
             className="bg-[#ffe600] hover:bg-[#f5dc00] text-gray-900 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
           >
-            {showForm ? 'Cancel' : '+ Add Item'}
+            {showForm ? 'Cancel' : 'New inventory item'}
           </button>
         </div>
 
@@ -216,7 +229,7 @@ export default function InventoryPage() {
         {showForm && (
           <div className="dashboard-section">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-bold text-gray-800">{editingItemId ? '  Edit Inventory Item' : 'Add New Inventory Item'}</h3>
+              <h3 className="text-base font-bold text-gray-800">{editingItemId ? 'Edit Inventory Item' : 'New inventory item'}</h3>
               <button
                 type="button"
                 onClick={fillDummyData}
@@ -258,7 +271,7 @@ export default function InventoryPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Initial Stock Quantity</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Initial Stock</label>
                   <input
                     type="number"
                     min="0"
@@ -280,7 +293,7 @@ export default function InventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Cost Price (₵)</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Cost per unit  (₵)</label>
                   <input
                     type="number"
                     min="0"
@@ -367,6 +380,101 @@ export default function InventoryPage() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Add to stock modal */}
+        {showAddStockModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+              <h3 className="text-base font-bold text-gray-800 mb-4">Add to stock</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Inventory Item</label>
+                  <select
+                    value={addStockForm.inventory_item}
+                    onChange={(e) => setAddStockForm(prev => ({ ...prev, inventory_item: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+                  >
+                    <option value="">Select item</option>
+                    {inventory.map(it => (
+                      <option key={it.id} value={it.id}>{it.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Quantity to add</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={addStockForm.quantity}
+                    onChange={(e) => setAddStockForm(prev => ({ ...prev, quantity: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Cost per unit (₵)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={addStockForm.cost_price}
+                    onChange={(e) => setAddStockForm(prev => ({ ...prev, cost_price: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price (optional)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={addStockForm.selling_price}
+                    onChange={(e) => setAddStockForm(prev => ({ ...prev, selling_price: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+                  />
+                </div>
+                <div className="flex gap-3 mt-3">
+                  <button
+                    onClick={async () => {
+                      if (!addStockForm.inventory_item) return;
+                      try {
+                        // Try backend add_stock endpoint first
+                        await api.inventory.addStock(addStockForm.inventory_item, {
+                          quantity: Number(addStockForm.quantity || 0),
+                          cost_price: addStockForm.cost_price ? Number(addStockForm.cost_price) : undefined,
+                          selling_price: addStockForm.selling_price ? Number(addStockForm.selling_price) : undefined,
+                        });
+                      } catch (err) {
+                        // Fallback: fetch the item and patch stock_quantity
+                        try {
+                          const item = await api.inventory.get(addStockForm.inventory_item);
+                          const newQty = (Number(item.stock_quantity || 0) + Number(addStockForm.quantity || 0));
+                          const patch: any = { stock_quantity: newQty };
+                          if (addStockForm.selling_price) patch.selling_price = Number(addStockForm.selling_price);
+                          await api.inventory.update(addStockForm.inventory_item, patch);
+                        } catch (err2) {
+                          console.error('Failed to add to stock', err2);
+                        }
+                      }
+                      // refresh
+                      await fetchInventory();
+                      setShowAddStockModal(false);
+                      setAddStockForm({ inventory_item: '', quantity: '', cost_price: '', selling_price: '' });
+                    }}
+                    className="bg-[#ffe600] hover:bg-[#f5dc00] text-gray-900 px-4 py-1.5 rounded-lg text-sm font-medium"
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={() => setShowAddStockModal(false)}
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-1.5 rounded-lg text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
