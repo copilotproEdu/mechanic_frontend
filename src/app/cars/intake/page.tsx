@@ -91,10 +91,31 @@ export default function CarIntakePage() {
       }
     }
 
-    // load makes/models dataset if present
-    fetch('/data/makes_models.json').then(r => r.json()).then(data => {
-      setMakesData(data || []);
-    }).catch(() => setMakesData([]));
+    const loadCatalog = async () => {
+      try {
+        const makesResponse = await api.vehicleMakes.list();
+        const makes = makesResponse?.results || makesResponse || [];
+        if (Array.isArray(makes) && makes.length > 0) {
+          const currentYear = new Date().getFullYear();
+          const years = Array.from({ length: currentYear - 2004 }, (_, i) => String(2005 + i));
+          setMakesData(makes.map((m: any) => ({
+            id: m.id,
+            make: m.name,
+            models: [],
+            years,
+          })));
+          return;
+        }
+      } catch {
+        // fallback to static file below
+      }
+
+      fetch('/data/makes_models.json').then(r => r.json()).then(data => {
+        setMakesData(data || []);
+      }).catch(() => setMakesData([]));
+    };
+
+    loadCatalog();
   }, []);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -248,10 +269,20 @@ export default function CarIntakePage() {
                   </label>
                   <SearchableSelect
                     value={formData.carMake}
-                    onChange={(v) => {
+                    onChange={async (v) => {
                       setFormData(prev => ({ ...prev, carMake: v, carModel: '' }));
                       const selected = makesData.find(m => m.make === v);
-                      setModelOptions((selected?.models || []).map((m:string) => ({ value: m })));
+                      if (selected?.id) {
+                        try {
+                          const modelsResponse = await api.vehicleModels.list({ make: selected.id });
+                          const models = modelsResponse?.results || modelsResponse || [];
+                          setModelOptions((models || []).map((m: any) => ({ value: m.name || m.value || '' })).filter((m: any) => m.value));
+                        } catch {
+                          setModelOptions((selected?.models || []).map((m:string) => ({ value: m })));
+                        }
+                      } else {
+                        setModelOptions((selected?.models || []).map((m:string) => ({ value: m })));
+                      }
                       setYearOptions((selected?.years || []).map((y:string) => ({ value: y })));
                     }}
                     options={(makesData || []).map(m => ({ value: m.make }))}

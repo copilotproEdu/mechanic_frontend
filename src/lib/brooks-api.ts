@@ -139,6 +139,32 @@ export const api = {
       fetch(`${API_BASE_URL}/customer-portal/${token}/`).then(r => r.json()),
   },
 
+  // Master catalogs
+  vehicleMakes: {
+    list: (search?: string) => {
+      const query = search ? `?search=${encodeURIComponent(search)}` : '';
+      return fetchAPI(`/vehicle-makes/${query}`, { method: 'GET' });
+    },
+  },
+
+  vehicleModels: {
+    list: (params?: { make?: string; make_name?: string; search?: string }) => {
+      const query = new URLSearchParams();
+      if (params?.make) query.append('make', params.make);
+      if (params?.make_name) query.append('make_name', params.make_name);
+      if (params?.search) query.append('search', params.search);
+      const suffix = query.toString() ? `?${query.toString()}` : '';
+      return fetchAPI(`/vehicle-models/${suffix}`, { method: 'GET' });
+    },
+  },
+
+  inventoryParts: {
+    list: (search?: string) => {
+      const query = search ? `?search=${encodeURIComponent(search)}` : '';
+      return fetchAPI(`/inventory-parts/${query}`, { method: 'GET' });
+    },
+  },
+
   // Visits
   visits: {
     list: (carId?: string) => {

@@ -65,10 +65,24 @@ export default function InventoryPage() {
     }
 
     fetchInventory();
-    // load parts list if available
-    fetch('/data/parts.json').then(r => r.json()).then((list) => {
-      setPartsOptions((list || []).map((p: string) => ({ value: p, label: p })));
-    }).catch(() => setPartsOptions([]));
+    const loadPartsCatalog = async () => {
+      try {
+        const partsResponse = await api.inventoryParts.list();
+        const parts = partsResponse?.results || partsResponse || [];
+        if (Array.isArray(parts) && parts.length > 0) {
+          setPartsOptions(parts.map((p: any) => ({ value: p.name || p.value || '', label: p.name || p.value || '' })).filter((p: any) => p.value));
+          return;
+        }
+      } catch {
+        // fallback below
+      }
+
+      fetch('/data/parts.json').then(r => r.json()).then((list) => {
+        setPartsOptions((list || []).map((p: string) => ({ value: p, label: p })));
+      }).catch(() => setPartsOptions([]));
+    };
+
+    loadPartsCatalog();
   }, []);
 
   const handleSubmit = async (e: FormEvent) => {
