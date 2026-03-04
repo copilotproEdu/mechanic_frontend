@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, FormEvent, ChangeEvent, useEffect } from 'react';
+import SearchableSelect from '@/components/SearchableSelect';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { api } from '@/lib/brooks-api';
@@ -14,6 +15,7 @@ interface FormData {
   carModel: string;
   carColor: string;
   carMileage: string;
+  carYear: string;
   reasonForVisit: string;
   routineService: boolean;
 }
@@ -32,9 +34,13 @@ export default function CarIntakePage() {
     carModel: '',
     carColor: '',
     carMileage: '',
+    carYear: '',
     reasonForVisit: '',
     routineService: false,
   });
+  const [makesData, setMakesData] = useState<any[]>([]);
+  const [modelOptions, setModelOptions] = useState<{value:string;label?:string}[]>([]);
+  const [yearOptions, setYearOptions] = useState<{value:string;label?:string}[]>([]);
 
   const fillDummyData = () => {
     const firstNames = ['Alex', 'Ama', 'Kojo', 'Fatima', 'Kofi', 'Esi'];
@@ -55,6 +61,7 @@ export default function CarIntakePage() {
     const model = models[Math.floor(Math.random() * models.length)];
     const color = colors[Math.floor(Math.random() * colors.length)];
     const mileage = String(20000 + Math.floor(Math.random() * 120000));
+    const year = String(2010 + Math.floor(Math.random() * 12));
     const phone = `02${Math.floor(10000000 + Math.random() * 90000000)}`;
     const plate = `GR-${Math.floor(1000 + Math.random() * 9000)}-${String(new Date().getFullYear()).slice(-2)}`;
 
@@ -65,6 +72,7 @@ export default function CarIntakePage() {
       carPlate: plate,
       carMake: make,
       carModel: model,
+      carYear: year,
       carColor: color,
       carMileage: mileage,
       reasonForVisit: reasons[Math.floor(Math.random() * reasons.length)],
@@ -82,6 +90,11 @@ export default function CarIntakePage() {
         setUserRole('receptionist');
       }
     }
+
+    // load makes/models dataset if present
+    fetch('/data/makes_models.json').then(r => r.json()).then(data => {
+      setMakesData(data || []);
+    }).catch(() => setMakesData([]));
   }, []);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -127,6 +140,7 @@ export default function CarIntakePage() {
         number_plate: formData.carPlate,
         make: formData.carMake,
         model: formData.carModel,
+        year: formData.carYear || undefined,
         color: formData.carColor,
         mileage: parseInt(formData.carMileage),
         reason_for_visit: formData.reasonForVisit,
@@ -232,15 +246,17 @@ export default function CarIntakePage() {
                   <label htmlFor="carMake" className="block text-sm font-medium text-gray-700 mb-2">
                     Make
                   </label>
-                  <input
-                    id="carMake"
-                    name="carMake"
-                    type="text"
+                  <SearchableSelect
                     value={formData.carMake}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-700 focus:ring-2 focus:ring-primary-200"
-                    placeholder="e.g., Toyota"
+                    onChange={(v) => {
+                      setFormData(prev => ({ ...prev, carMake: v, carModel: '' }));
+                      const selected = makesData.find(m => m.make === v);
+                      setModelOptions((selected?.models || []).map((m:string) => ({ value: m })));
+                      setYearOptions((selected?.years || []).map((y:string) => ({ value: y })));
+                    }}
+                    options={(makesData || []).map(m => ({ value: m.make }))}
+                    placeholder="Select or type make"
+                    allowFreeText={true}
                   />
                 </div>
 
@@ -248,15 +264,25 @@ export default function CarIntakePage() {
                   <label htmlFor="carModel" className="block text-sm font-medium text-gray-700 mb-2">
                     Model
                   </label>
-                  <input
-                    id="carModel"
-                    name="carModel"
-                    type="text"
+                  <SearchableSelect
                     value={formData.carModel}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-700 focus:ring-2 focus:ring-primary-200"
-                    placeholder="e.g., Camry"
+                    onChange={(v) => setFormData(prev => ({ ...prev, carModel: v }))}
+                    options={modelOptions}
+                    placeholder="Select or type model"
+                    allowFreeText={true}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="carYear" className="block text-sm font-medium text-gray-700 mb-2">
+                    Year
+                  </label>
+                  <SearchableSelect
+                    value={formData.carYear || ''}
+                    onChange={(v) => setFormData(prev => ({ ...prev, carYear: v }))}
+                    options={yearOptions}
+                    placeholder="Select or type year"
+                    allowFreeText={true}
                   />
                 </div>
 

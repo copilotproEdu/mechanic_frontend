@@ -54,8 +54,9 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md border border-primary-100">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-primary-800 mb-2">AutoShop Pro</h1>
-          <p className="text-gray-600">Management System</p>
+          <img src="/images/logo.png" alt="BROOKSMEKANIKS" className="mx-auto w-20 h-20 mb-3 object-contain" />
+          <h1 className="text-3xl font-bold text-primary-800 mb-1">BROOKSMEKANIKS</h1>
+          <p className="text-gray-600">Solutions you can trust</p>
         </div>
 
         {error && (

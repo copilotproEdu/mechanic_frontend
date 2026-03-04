@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
+import SearchableSelect from '@/components/SearchableSelect';
 import { api } from '@/lib/brooks-api';
 
 export default function InventoryPage() {
@@ -34,6 +35,7 @@ export default function InventoryPage() {
   });
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [partsOptions, setPartsOptions] = useState<{value:string;label?:string}[]>([]);
 
   const formatCedi = (value: number | string | null | undefined) => {
     const amount = Number(value || 0);
@@ -63,6 +65,10 @@ export default function InventoryPage() {
     }
 
     fetchInventory();
+    // load parts list if available
+    fetch('/data/parts.json').then(r => r.json()).then((list) => {
+      setPartsOptions((list || []).map((p: string) => ({ value: p, label: p })));
+    }).catch(() => setPartsOptions([]));
   }, []);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -243,12 +249,12 @@ export default function InventoryPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Item Name</label>
-                  <input
-                    type="text"
+                  <SearchableSelect
                     value={itemForm.name}
-                    onChange={(e) => setItemForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 focus:outline-none"
-                    required
+                    onChange={(v) => setItemForm(prev => ({ ...prev, name: v }))}
+                    options={partsOptions}
+                    placeholder="Start typing or select a part"
+                    allowFreeText={true}
                   />
                 </div>
                 <div>
