@@ -17,6 +17,7 @@ export default function InventoryPage() {
     selling_price: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [addStockSubmitting, setAddStockSubmitting] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState('mechanic');
   const [itemForm, setItemForm] = useState({
@@ -438,6 +439,7 @@ export default function InventoryPage() {
                   <button
                     onClick={async () => {
                       if (!addStockForm.inventory_item) return;
+                      setAddStockSubmitting(true);
                       try {
                         // Try backend add_stock endpoint first
                         await api.inventory.addStock(addStockForm.inventory_item, {
@@ -461,10 +463,12 @@ export default function InventoryPage() {
                       await fetchInventory();
                       setShowAddStockModal(false);
                       setAddStockForm({ inventory_item: '', quantity: '', cost_price: '', selling_price: '' });
+                      setAddStockSubmitting(false);
                     }}
-                    className="bg-[#ffe600] hover:bg-[#f5dc00] text-gray-900 px-4 py-1.5 rounded-lg text-sm font-medium"
+                    disabled={addStockSubmitting}
+                    className="bg-[#ffe600] hover:bg-[#f5dc00] disabled:bg-gray-400 text-gray-900 px-4 py-1.5 rounded-lg text-sm font-medium"
                   >
-                    Add
+                    {addStockSubmitting ? 'Adding...' : 'Add'}
                   </button>
                   <button
                     onClick={() => setShowAddStockModal(false)}

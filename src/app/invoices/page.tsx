@@ -132,17 +132,15 @@ export default function InvoicesPage() {
     const partsCost = Number(invoice.parts_cost || 0);
     const laborCost = Number(invoice.labor_cost || 0);
     const outsourcedCost = Number(invoice.outsourced_cost || 0);
-    const taxAmount = Number(invoice.tax_amount || 0);
     const totalAmount = Number(invoice.total_amount || 0);
 
     items.push(
       { description: 'Parts Cost', unitPrice: partsCost, amount: partsCost },
       { description: 'Labor Cost', unitPrice: laborCost, amount: laborCost },
-      { description: 'Outsourced Cost', unitPrice: outsourcedCost, amount: outsourcedCost },
-      { description: 'Tax', unitPrice: taxAmount, amount: taxAmount }
+      { description: 'Outsourced Cost', unitPrice: outsourcedCost, amount: outsourcedCost }
     );
 
-    const subtotal = partsCost + laborCost + outsourcedCost + taxAmount;
+    const subtotal = partsCost + laborCost + outsourcedCost;
     const difference = Number((totalAmount - subtotal).toFixed(2));
 
     if (Math.abs(difference) >= 0.01) {
