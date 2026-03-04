@@ -3,6 +3,12 @@ import path from 'node:path';
 
 const OUTPUT_DIR = path.resolve(process.cwd(), 'public', 'data');
 
+const PRIORITY_MAKES = [
+  'Toyota', 'Honda', 'Nissan', 'Hyundai', 'Kia', 'Ford', 'Chevrolet', 'BMW', 'Mercedes-Benz', 'Volkswagen',
+  'Audi', 'Lexus', 'Mazda', 'Subaru', 'Mitsubishi', 'Peugeot', 'Renault', 'Volvo', 'Land Rover', 'Jeep',
+  'Suzuki', 'Isuzu', 'Acura', 'Infiniti', 'Porsche', 'Jaguar', 'MINI', 'Fiat', 'Skoda', 'SEAT'
+];
+
 const FALLBACK_MAKES = [
   'Toyota', 'Honda', 'Nissan', 'Hyundai', 'Kia', 'Ford', 'Chevrolet', 'BMW', 'Mercedes-Benz', 'Volkswagen',
   'Audi', 'Lexus', 'Mazda', 'Subaru', 'Mitsubishi', 'Peugeot', 'Renault', 'Volvo', 'Land Rover', 'Jeep'
@@ -50,6 +56,20 @@ async function fetchMakes() {
   }
 }
 
+function prioritizeMakes(makes) {
+  const normalizedMap = new Map(
+    makes.map((make) => [String(make).toLowerCase().replace(/[^a-z0-9]/g, ''), make])
+  );
+
+  const preferred = PRIORITY_MAKES
+    .map((make) => normalizedMap.get(String(make).toLowerCase().replace(/[^a-z0-9]/g, '')))
+    .filter(Boolean);
+
+  const preferredSet = new Set(preferred);
+  const remainder = makes.filter((make) => !preferredSet.has(make));
+  return [...preferred, ...remainder];
+}
+
 async function fetchModelsForMake(make) {
   try {
     const encodedMake = encodeURIComponent(make);
@@ -63,7 +83,7 @@ async function fetchModelsForMake(make) {
 
 async function buildMakeModelYearDataset() {
   const makes = await fetchMakes();
-  const topMakes = makes.slice(0, 40);
+  const topMakes = prioritizeMakes(makes).slice(0, 80);
   const years = yearRange(2005);
   const results = [];
 
