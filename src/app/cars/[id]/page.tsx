@@ -715,7 +715,7 @@ export default function CarDetailPage() {
             <div>
               <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">Car Details</p>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                {car.make} {car.model}{car.color && ` (${car.color})`}
+                {[car.year, car.make, car.model].filter(Boolean).join(' ')}{car.color && ` (${car.color})`}
               </h2>
               <p className="text-sm text-gray-600 mt-1">Plate: {car.number_plate} • Mileage: {car.mileage} km</p>
               <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold capitalize ${getStatusStyle(car.status)}`}>
@@ -815,12 +815,8 @@ export default function CarDetailPage() {
                   <h3 className="text-lg font-bold text-gray-800 mb-4">Car Information</h3>
                   <div className="space-y-3">
                     <div>
-                      <span className="text-gray-600">Make:</span>
-                      <span className="ml-2 font-semibold">{car.make}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Model:</span>
-                      <span className="ml-2 font-semibold">{car.model}</span>
+                      <span className="text-gray-600">Year/Make/Model:</span>
+                      <span className="ml-2 font-semibold">{[car.year, car.make, car.model].filter(Boolean).join(' ') || 'N/A'}</span>
                     </div>
                     <div>
                       <span className="text-gray-600">Plate:</span>

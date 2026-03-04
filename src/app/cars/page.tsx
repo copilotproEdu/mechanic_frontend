@@ -140,7 +140,7 @@ export default function CarsPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Plate</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Make/Model</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Year/Make/Model</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Customer</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Action</th>
@@ -151,7 +151,7 @@ export default function CarsPage() {
                   <tr key={car.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-2.5 text-sm font-medium text-gray-900">{car.number_plate}</td>
                     <td className="px-4 py-2.5 text-sm text-gray-600">
-                      {car.make} {car.model}
+                      {[car.year, car.make, car.model].filter(Boolean).join(' ')}
                     </td>
                     <td className="px-4 py-2.5 text-sm text-gray-600">
                       {car.customer_name || 'N/A'}
