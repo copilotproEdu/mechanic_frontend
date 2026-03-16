@@ -347,6 +347,9 @@ export default function CarDetailPage() {
   };
 
   const normalizeName = (value: string | null | undefined) => String(value || '').trim().toLowerCase();
+  const currentCustomerName = normalizeName(
+    car?.customer_name || car?.customer?.name || car?.customer?.full_name || ''
+  );
 
   const assignableInventoryItems = inventoryItems.filter((item) => {
     const supplierName = normalizeName(item?.supplier_name);
@@ -354,7 +357,7 @@ export default function CarDetailPage() {
     if (!isCustomerProvidedInventory) {
       return true;
     }
-    return supplierName === normalizeName(car?.customer_name);
+    return supplierName === currentCustomerName;
   });
 
   const handleCreateDiagnostics = async (event: FormEvent) => {
