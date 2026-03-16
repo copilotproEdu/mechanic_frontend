@@ -310,9 +310,37 @@ export default function CarDetailPage() {
     if (loadingInventoryItems) return;
     setLoadingInventoryItems(true);
     try {
-      const data = await api.inventory.list();
-      const items = Array.isArray(data) ? data : data?.results || [];
-      setInventoryItems(items);
+      const getNextPage = (nextUrl?: string | null) => {
+        if (!nextUrl) return null;
+        try {
+          const parsed = new URL(nextUrl);
+          const page = parsed.searchParams.get('page');
+          return page ? Number(page) : null;
+        } catch {
+          return null;
+        }
+      };
+
+      const allItems: any[] = [];
+      let page = 1;
+      let hasNext = true;
+
+      while (hasNext) {
+        const data = await api.inventory.list({ page });
+        const items = Array.isArray(data) ? data : data?.results || [];
+        if (Array.isArray(items)) {
+          allItems.push(...items);
+        }
+
+        const nextPage = getNextPage(data?.next);
+        if (!nextPage || nextPage === page) {
+          hasNext = false;
+        } else {
+          page = nextPage;
+        }
+      }
+
+      setInventoryItems(allItems);
     } finally {
       setLoadingInventoryItems(false);
     }

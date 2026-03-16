@@ -223,8 +223,23 @@ export const api = {
 
   // Inventory Items
   inventory: {
-    list: (search?: string) => {
-      const query = search ? `?search=${search}` : '';
+    list: (params?: string | Record<string, any>) => {
+      const searchParams = new URLSearchParams();
+
+      if (typeof params === 'string') {
+        if (params.trim()) {
+          searchParams.append('search', params.trim());
+        }
+      } else if (params && typeof params === 'object') {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            searchParams.append(key, String(value));
+          }
+        });
+      }
+
+      const queryString = searchParams.toString();
+      const query = queryString ? `?${queryString}` : '';
       return fetchAPI(`/inventory/${query}`, { method: 'GET' });
     },
     get: (id: string) =>
