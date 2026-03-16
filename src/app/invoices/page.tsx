@@ -165,7 +165,6 @@ export default function InvoicesPage() {
   const paymentDetails = [
     systemSettings?.bank_name || 'Bank Name Not Configured',
     systemSettings?.bank_account || 'Bank Account Not Configured',
-    systemSettings?.company_address || 'Address Not Configured',
     'Mobile Money',
     systemSettings?.mobile_money_number || 'Mobile Money Number Not Configured',
     systemSettings?.company_name || 'Company Name Not Configured',
