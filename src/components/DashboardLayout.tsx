@@ -20,6 +20,7 @@ import {
   FiSearch,
   FiX,
 } from 'react-icons/fi';
+import { getUnreadNotificationCount } from '@/lib/notifications-feed';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -43,7 +44,7 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
   const [userName, setUserName] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isTabletView, setIsTabletView] = useState(false);
-  const [notificationCount, setNotificationCount] = useState(3); // TODO: Fetch from API
+  const [notificationCount, setNotificationCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchHasNoMatch, setSearchHasNoMatch] = useState(false);
 
@@ -80,6 +81,31 @@ export default function DashboardLayout({ children, userRole }: DashboardLayoutP
     if (saved !== null) {
       setSidebarOpen(!JSON.parse(saved));
     }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const refreshNotificationsCount = async () => {
+      try {
+        const unreadCount = await getUnreadNotificationCount();
+        if (active) {
+          setNotificationCount(unreadCount);
+        }
+      } catch {
+        if (active) {
+          setNotificationCount(0);
+        }
+      }
+    };
+
+    refreshNotificationsCount();
+    const interval = window.setInterval(refreshNotificationsCount, 45000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {

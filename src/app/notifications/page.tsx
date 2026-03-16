@@ -2,10 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { api } from '@/lib/brooks-api';
+import {
+  AppNotification,
+  fetchNotificationsFeed,
+  markNotificationRead,
+  markNotificationsRead,
+} from '@/lib/notifications-feed';
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState('receptionist');
@@ -25,8 +30,7 @@ export default function NotificationsPage() {
       setLoading(true);
       setError('');
       try {
-        const data = await api.notifications.list();
-        const items = data?.results || data || [];
+        const items = await fetchNotificationsFeed();
         setNotifications(items);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load notifications');
@@ -39,24 +43,19 @@ export default function NotificationsPage() {
   }, []);
 
   const markAsRead = async (id: string) => {
+    markNotificationRead(id);
     setNotifications(prev =>
       prev.map(notif =>
         notif.id === id ? { ...notif, read: true } : notif
       )
     );
-    // Note: Backend is read-only, so we only update client-side
   };
 
   const markAllAsRead = async () => {
+    markNotificationsRead(notifications.map((notif) => notif.id));
     setNotifications(prev =>
       prev.map(notif => ({ ...notif, read: true }))
     );
-    // Note: Backend is read-only, so we only update client-side
-  };
-
-  const normalizeType = (notification: any) => {
-    const raw = notification.type || notification.notification_type || notification.level || 'info';
-    return String(raw).toLowerCase();
   };
 
   const getNotificationColor = (type: string) => {
@@ -104,7 +103,7 @@ export default function NotificationsPage() {
                 className={`dashboard-card dashboard-card-hover p-4 border-l-2 cursor-pointer transition ${
                   notification.read
                     ? 'bg-gray-50 border-gray-300'
-                    : getNotificationColor(normalizeType(notification))
+                    : getNotificationColor(notification.type)
                 }`}
                 onClick={() => markAsRead(notification.id)}
               >
@@ -113,7 +112,7 @@ export default function NotificationsPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-bold text-gray-800">{notification.title}</h3>
                       <span className="text-[10px] uppercase tracking-wide text-gray-500">
-                        {normalizeType(notification)}
+                        {notification.type}
                       </span>
                       {!notification.read && (
                         <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-xs font-semibold">
