@@ -53,7 +53,8 @@ export default function CarsPage() {
         car.customer_name?.toLowerCase().includes(query) ||
         car.number_plate?.toLowerCase().includes(query) ||
         car.make?.toLowerCase().includes(query) ||
-        car.model?.toLowerCase().includes(query)
+        car.model?.toLowerCase().includes(query) ||
+        car.trim?.toLowerCase().includes(query)
       );
       setFilteredCars(filtered);
     }
@@ -151,7 +152,7 @@ export default function CarsPage() {
                   <tr key={car.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-2.5 text-sm font-medium text-gray-900">{car.number_plate}</td>
                     <td className="px-4 py-2.5 text-sm text-gray-600">
-                      {[car.year, car.make, car.model].filter(Boolean).join(' ')}
+                      {[car.year, car.make, car.model, car.trim].filter(Boolean).join(' ')}
                     </td>
                     <td className="px-4 py-2.5 text-sm text-gray-600">
                       {car.customer_name || 'N/A'}

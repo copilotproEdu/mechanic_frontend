@@ -141,26 +141,43 @@ export const api = {
 
   // Master catalogs
   vehicleMakes: {
-    list: (search?: string) => {
-      const query = search ? `?search=${encodeURIComponent(search)}` : '';
+    list: (params?: string | { search?: string; page?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (typeof params === 'string' && params) {
+        queryParams.append('search', params);
+      }
+      if (typeof params === 'object') {
+        if (params.search) queryParams.append('search', params.search);
+        if (params.page) queryParams.append('page', String(params.page));
+      }
+      const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
       return fetchAPI(`/vehicle-makes/${query}`, { method: 'GET' });
     },
   },
 
   vehicleModels: {
-    list: (params?: { make?: string; make_name?: string; search?: string }) => {
+    list: (params?: { make?: string; make_name?: string; search?: string; page?: number }) => {
       const query = new URLSearchParams();
       if (params?.make) query.append('make', params.make);
       if (params?.make_name) query.append('make_name', params.make_name);
       if (params?.search) query.append('search', params.search);
+      if (params?.page) query.append('page', String(params.page));
       const suffix = query.toString() ? `?${query.toString()}` : '';
       return fetchAPI(`/vehicle-models/${suffix}`, { method: 'GET' });
     },
   },
 
   inventoryParts: {
-    list: (search?: string) => {
-      const query = search ? `?search=${encodeURIComponent(search)}` : '';
+    list: (params?: string | { search?: string; page?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (typeof params === 'string' && params) {
+        queryParams.append('search', params);
+      }
+      if (typeof params === 'object') {
+        if (params.search) queryParams.append('search', params.search);
+        if (params.page) queryParams.append('page', String(params.page));
+      }
+      const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
       return fetchAPI(`/inventory-parts/${query}`, { method: 'GET' });
     },
   },
@@ -303,6 +320,15 @@ export const api = {
     create: (data: any) =>
       fetchAPI('/payments/', {
         method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  settings: {
+    get: () => fetchAPI('/settings/', { method: 'GET' }),
+    update: (id: string, data: any) =>
+      fetchAPI(`/settings/${id}/`, {
+        method: 'PUT',
         body: JSON.stringify(data),
       }),
   },

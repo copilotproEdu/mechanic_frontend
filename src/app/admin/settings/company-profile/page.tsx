@@ -1,17 +1,76 @@
 'use client';
 
-import { useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { FiUpload, FiSave } from 'react-icons/fi';
+import { api } from '@/lib/brooks-api';
 
 export default function CompanyProfilePage() {
   const [companyData, setCompanyData] = useState({
-    id: 'SCHOOL-001',
-    name: 'Springfield High School',
-    numberOfUsers: 24,
-    address: '123 Education Avenue, Springfield, ST 12345',
-    phone: '+1 (555) 123-4567',
-    email: 'info@springfieldhigh.edu',
+    id: '',
+    name: '',
+    numberOfUsers: 0,
+    address: '',
+    phone: '',
+    email: '',
+    bank_name: '',
+    bank_account: '',
+    mobile_money_number: '',
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await api.settings.get();
+        setCompanyData({
+          id: data.id || '',
+          name: data.company_name || '',
+          numberOfUsers: 0,
+          address: data.company_address || '',
+          phone: data.company_phone || '',
+          email: data.company_email || '',
+          bank_name: data.bank_name || '',
+          bank_account: data.bank_account || '',
+          mobile_money_number: data.mobile_money_number || '',
+        });
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : 'Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []);
+
+  const handleSave = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!companyData.id) {
+      setMessage('Settings ID not found');
+      return;
+    }
+
+    setSaving(true);
+    setMessage('');
+    try {
+      await api.settings.update(companyData.id, {
+        company_name: companyData.name,
+        company_email: companyData.email,
+        company_phone: companyData.phone,
+        company_address: companyData.address,
+        bank_name: companyData.bank_name,
+        bank_account: companyData.bank_account,
+        mobile_money_number: companyData.mobile_money_number,
+      });
+      setMessage('Profile saved successfully.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const fillDummyCompany = () => {
     const names = ['Brookfield Academy', 'Riverside School', 'Maple Grove High', 'Sunrise Prep'];
@@ -28,19 +87,29 @@ export default function CompanyProfilePage() {
     const email = `info@${name.toLowerCase().replace(/\s+/g, '')}.edu`;
 
     setCompanyData({
-      id: 'SCHOOL-001',
+      id: companyData.id,
       name,
       numberOfUsers: users,
       address,
       phone,
       email,
+      bank_name: 'Sample Bank Ghana',
+      bank_account: '1234567890',
+      mobile_money_number: '0240000000',
     });
   };
+
+  if (loading) {
+    return <div className="card p-6">Loading profile...</div>;
+  }
 
   return (
     <div>
       <div className="card p-6">
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={handleSave}>
+          {message && (
+            <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2">{message}</div>
+          )}
           {/* School Logo */}
           <div>
             <label className="label">School Logo</label>
@@ -58,7 +127,7 @@ export default function CompanyProfilePage() {
 
           {/* School ID */}
           <div>
-            <label className="label">School ID</label>
+            <label className="label">Settings ID</label>
             <input
               type="text"
               value={companyData.id}
@@ -91,11 +160,41 @@ export default function CompanyProfilePage() {
 
           {/* School Address */}
           <div>
-            <label className="label">School Address</label>
+            <label className="label">Business Address</label>
             <textarea
               value={companyData.address}
               onChange={(e) => setCompanyData({ ...companyData, address: e.target.value })}
               rows={3}
+              className="input-field"
+            />
+          </div>
+
+          <div>
+            <label className="label">Bank Name</label>
+            <input
+              type="text"
+              value={companyData.bank_name}
+              onChange={(e) => setCompanyData({ ...companyData, bank_name: e.target.value })}
+              className="input-field"
+            />
+          </div>
+
+          <div>
+            <label className="label">Bank Account</label>
+            <input
+              type="text"
+              value={companyData.bank_account}
+              onChange={(e) => setCompanyData({ ...companyData, bank_account: e.target.value })}
+              className="input-field"
+            />
+          </div>
+
+          <div>
+            <label className="label">Mobile Money Number</label>
+            <input
+              type="text"
+              value={companyData.mobile_money_number}
+              onChange={(e) => setCompanyData({ ...companyData, mobile_money_number: e.target.value })}
               className="input-field"
             />
           </div>
@@ -130,9 +229,9 @@ export default function CompanyProfilePage() {
             <button type="button" className="btn-secondary">
               Cancel
             </button>
-            <button type="submit" className="btn-primary flex items-center gap-2">
+            <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">
               <FiSave className="w-4 h-4" />
-              Save Changes
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>

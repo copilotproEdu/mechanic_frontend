@@ -7,8 +7,12 @@ import { api } from '@/lib/brooks-api';
 
 export default function InventoryPage() {
   const [inventory, setInventory] = useState<any[]>([]);
+  const [cars, setCars] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'category' | 'supplier' | 'stock'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showForm, setShowForm] = useState(false);
   const [showAddStockModal, setShowAddStockModal] = useState(false);
   const [addStockForm, setAddStockForm] = useState({
@@ -16,6 +20,11 @@ export default function InventoryPage() {
     quantity: '',
     cost_price: '',
     selling_price: '',
+    supplier_name: '',
+    supplier_phone: '',
+    is_on_credit: false,
+    credit_amount: '',
+    amount_paid: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [addStockSubmitting, setAddStockSubmitting] = useState(false);
@@ -27,11 +36,15 @@ export default function InventoryPage() {
     stock_quantity: '',
     cost_price: '',
     selling_price: '',
-    minimum_stock_level: '',
+    low_stock_threshold: '',
     supplier_name: '',
     supplier_phone: '',
     is_on_credit: false,
     credit_amount: '',
+    amount_paid: '',
+    is_customer_provided: false,
+    assign_car_id: '',
+    assign_quantity: '1',
   });
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
@@ -64,11 +77,50 @@ export default function InventoryPage() {
       }
     }
 
-    fetchInventory();
-    const loadPartsCatalog = async () => {
+    const bootstrap = async () => {
+      await fetchInventory();
       try {
-        const partsResponse = await api.inventoryParts.list();
-        const parts = partsResponse?.results || partsResponse || [];
+        const carData = await api.cars.list();
+        setCars(carData?.results || carData || []);
+      } catch {
+        setCars([]);
+      }
+    };
+
+    bootstrap();
+    const loadPartsCatalog = async () => {
+      const getNextPage = (nextUrl?: string | null) => {
+        if (!nextUrl) return null;
+        try {
+          const parsed = new URL(nextUrl);
+          const page = parsed.searchParams.get('page');
+          return page ? Number(page) : null;
+        } catch {
+          return null;
+        }
+      };
+
+      try {
+        const allParts: any[] = [];
+        let page = 1;
+        let hasNext = true;
+
+        while (hasNext) {
+          const partsResponse = await api.inventoryParts.list({ page });
+          const pageItems = partsResponse?.results || partsResponse || [];
+          if (Array.isArray(pageItems)) {
+            allParts.push(...pageItems);
+          }
+
+          const nextPage = getNextPage(partsResponse?.next);
+          if (!nextPage || nextPage === page) {
+            hasNext = false;
+          } else {
+            page = nextPage;
+          }
+        }
+
+        const parts = allParts;
         if (Array.isArray(parts) && parts.length > 0) {
           setPartsOptions(parts.map((p: any) => ({ value: p.name || p.value || '', label: p.name || p.value || '' })).filter((p: any) => p.value));
           return;
@@ -91,19 +143,44 @@ export default function InventoryPage() {
     setError('');
 
     try {
+      const creditAmount = Number(itemForm.credit_amount || 0);
+      const amountPaid = Number(itemForm.amount_paid || 0);
+
+      if (itemForm.is_on_credit && amountPaid > creditAmount) {
+        setError('Amount paid cannot exceed credit amount.');
+        return;
+      }
+
       const itemData = {
-        ...itemForm,
+        name: itemForm.name,
+        category: itemForm.category,
+        supplier_name: itemForm.is_customer_provided ? '' : itemForm.supplier_name,
+        supplier_phone: itemForm.is_customer_provided ? '' : itemForm.supplier_phone,
         stock_quantity: Number(itemForm.stock_quantity),
-        cost_price: Number(itemForm.cost_price),
-        selling_price: Number(itemForm.selling_price),
-        minimum_stock_level: Number(itemForm.minimum_stock_level || 0),
-        credit_amount: itemForm.is_on_credit ? Number(itemForm.credit_amount) : null,
+        cost_price: itemForm.is_customer_provided ? 0 : Number(itemForm.cost_price),
+        selling_price: itemForm.is_customer_provided ? 0 : Number(itemForm.selling_price),
+        low_stock_threshold: Number(itemForm.low_stock_threshold || 0),
+        is_on_credit: itemForm.is_customer_provided ? false : itemForm.is_on_credit,
+        credit_amount: itemForm.is_customer_provided ? 0 : (itemForm.is_on_credit ? creditAmount : 0),
+        amount_paid: itemForm.is_customer_provided ? 0 : (itemForm.is_on_credit ? amountPaid : 0),
       };
 
+      let createdOrUpdated: any;
       if (editingItemId) {
-        await api.inventory.update(editingItemId, itemData);
+        createdOrUpdated = await api.inventory.update(editingItemId, itemData);
       } else {
-        await api.inventory.create(itemData);
+        createdOrUpdated = await api.inventory.create(itemData);
+      }
+
+      if (!editingItemId && itemForm.is_customer_provided && itemForm.assign_car_id) {
+        await api.carInventory.create({
+          car: itemForm.assign_car_id,
+          inventory_item: createdOrUpdated?.id,
+          quantity: Number(itemForm.assign_quantity || 1),
+          cost_price: 0,
+          selling_price: 0,
+          is_customer_provided: true,
+        });
       }
 
       setShowForm(false);
@@ -114,11 +191,15 @@ export default function InventoryPage() {
         stock_quantity: '',
         cost_price: '',
         selling_price: '',
-        minimum_stock_level: '',
+        low_stock_threshold: '',
         supplier_name: '',
         supplier_phone: '',
         is_on_credit: false,
         credit_amount: '',
+        amount_paid: '',
+        is_customer_provided: false,
+        assign_car_id: '',
+        assign_quantity: '1',
       });
       await fetchInventory();
     } catch (err) {
@@ -135,11 +216,15 @@ export default function InventoryPage() {
       stock_quantity: item.stock_quantity.toString(),
       cost_price: item.cost_price.toString(),
       selling_price: item.selling_price.toString(),
-      minimum_stock_level: (item.low_stock_threshold || item.minimum_stock_level || '').toString(),
+      low_stock_threshold: (item.low_stock_threshold || item.minimum_stock_level || '').toString(),
       supplier_name: item.supplier_name || '',
       supplier_phone: item.supplier_phone || '',
       is_on_credit: item.is_on_credit || false,
       credit_amount: item.credit_amount ? item.credit_amount.toString() : '',
+      amount_paid: item.amount_paid ? item.amount_paid.toString() : '',
+      is_customer_provided: false,
+      assign_car_id: '',
+      assign_quantity: '1',
     });
     setEditingItemId(item.id);
     setShowForm(true);
@@ -154,11 +239,15 @@ export default function InventoryPage() {
       stock_quantity: '',
       cost_price: '',
       selling_price: '',
-      minimum_stock_level: '',
+      low_stock_threshold: '',
       supplier_name: '',
       supplier_phone: '',
       is_on_credit: false,
       credit_amount: '',
+      amount_paid: '',
+      is_customer_provided: false,
+      assign_car_id: '',
+      assign_quantity: '1',
     });
   };
 
@@ -202,13 +291,47 @@ export default function InventoryPage() {
       stock_quantity: stockQty.toString(),
       cost_price: costPrice,
       selling_price: sellingPrice,
-      minimum_stock_level: minStock.toString(),
+      low_stock_threshold: minStock.toString(),
       supplier_name: randomSupplier.name,
       supplier_phone: randomSupplier.phone,
       is_on_credit: isOnCredit,
       credit_amount: creditAmount,
+      amount_paid: isOnCredit ? '0' : '',
+      is_customer_provided: false,
+      assign_car_id: '',
+      assign_quantity: '1',
     });
   };
+
+  const filteredInventory = inventory.filter((item: any) => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      String(item.name || '').toLowerCase().includes(query) ||
+      String(item.category_display || item.category || '').toLowerCase().includes(query) ||
+      String(item.supplier_name || '').toLowerCase().includes(query)
+    );
+  });
+
+  const sortedInventory = [...filteredInventory].sort((a: any, b: any) => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+
+    if (sortBy === 'stock') {
+      return (Number(a.stock_quantity || 0) - Number(b.stock_quantity || 0)) * dir;
+    }
+
+    if (sortBy === 'supplier') {
+      return String(a.supplier_name || '').localeCompare(String(b.supplier_name || '')) * dir;
+    }
+
+    if (sortBy === 'category') {
+      const aCategory = String(a.category_display || a.category || '');
+      const bCategory = String(b.category_display || b.category || '');
+      return aCategory.localeCompare(bCategory) * dir;
+    }
+
+    return String(a.name || '').localeCompare(String(b.name || '')) * dir;
+  });
 
   if (loading) {
     return (
@@ -223,6 +346,33 @@ export default function InventoryPage() {
   return (
     <DashboardLayout userRole={userRole}>
       <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="md:col-span-2 border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+            placeholder="Search item name, category, supplier"
+          />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'name' | 'category' | 'supplier' | 'stock')}
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+          >
+            <option value="name">Sort by Item Name</option>
+            <option value="category">Sort by Category</option>
+            <option value="supplier">Sort by Supplier</option>
+            <option value="stock">Sort by Stock</option>
+          </select>
+          <select
+            value={sortDir}
+            onChange={(e) => setSortDir(e.target.value as 'asc' | 'desc')}
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+          >
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </div>
+
         <div className="flex justify-end items-center gap-2">
           <button
             onClick={() => setShowAddStockModal(true)}
@@ -292,7 +442,7 @@ export default function InventoryPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Initial Stock</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
                   <input
                     type="number"
                     min="0"
@@ -307,11 +457,32 @@ export default function InventoryPage() {
                   <input
                     type="number"
                     min="0"
-                    value={itemForm.minimum_stock_level}
-                    onChange={(e) => setItemForm(prev => ({ ...prev, minimum_stock_level: e.target.value }))}
+                    value={itemForm.low_stock_threshold}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, low_stock_threshold: e.target.value }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 focus:outline-none"
                     placeholder="Alert when stock falls below"
                   />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={itemForm.is_customer_provided}
+                      onChange={(e) => setItemForm(prev => ({
+                        ...prev,
+                        is_customer_provided: e.target.checked,
+                        supplier_name: e.target.checked ? '' : prev.supplier_name,
+                        supplier_phone: e.target.checked ? '' : prev.supplier_phone,
+                        is_on_credit: e.target.checked ? false : prev.is_on_credit,
+                        credit_amount: e.target.checked ? '' : prev.credit_amount,
+                        amount_paid: e.target.checked ? '' : prev.amount_paid,
+                        cost_price: e.target.checked ? '0' : prev.cost_price,
+                        selling_price: e.target.checked ? '0' : prev.selling_price,
+                      }))}
+                      className="w-4 h-4 border border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-700">Customer-provided item</span>
+                  </label>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Cost per unit  (₵)</label>
@@ -323,6 +494,7 @@ export default function InventoryPage() {
                     onChange={(e) => setItemForm(prev => ({ ...prev, cost_price: e.target.value }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 focus:outline-none"
                     required
+                    disabled={itemForm.is_customer_provided}
                   />
                 </div>
                 <div>
@@ -335,6 +507,7 @@ export default function InventoryPage() {
                     onChange={(e) => setItemForm(prev => ({ ...prev, selling_price: e.target.value }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 focus:outline-none"
                     required
+                    disabled={itemForm.is_customer_provided}
                   />
                 </div>
                 <div>
@@ -345,6 +518,7 @@ export default function InventoryPage() {
                     onChange={(e) => setItemForm(prev => ({ ...prev, supplier_name: e.target.value }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 focus:outline-none"
                     placeholder="e.g., AutoParts Ghana Ltd"
+                    disabled={itemForm.is_customer_provided}
                   />
                 </div>
                 <div>
@@ -355,6 +529,7 @@ export default function InventoryPage() {
                     onChange={(e) => setItemForm(prev => ({ ...prev, supplier_phone: e.target.value }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 focus:outline-none"
                     placeholder="e.g., 0302 123456"
+                    disabled={itemForm.is_customer_provided}
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -364,24 +539,68 @@ export default function InventoryPage() {
                       checked={itemForm.is_on_credit}
                       onChange={(e) => setItemForm(prev => ({ ...prev, is_on_credit: e.target.checked }))}
                       className="w-4 h-4 border border-gray-300 rounded"
+                      disabled={itemForm.is_customer_provided}
                     />
                     <span className="ml-2 text-sm font-medium text-gray-700">Purchased on Credit</span>
                   </label>
                 </div>
                 {itemForm.is_on_credit && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Credit Amount (₵)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={itemForm.credit_amount}
-                      onChange={(e) => setItemForm(prev => ({ ...prev, credit_amount: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 focus:outline-none"
-                      placeholder="Amount owed to supplier"
-                      required={itemForm.is_on_credit}
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Credit Amount (₵)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={itemForm.credit_amount}
+                        onChange={(e) => setItemForm(prev => ({ ...prev, credit_amount: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 focus:outline-none"
+                        placeholder="Amount owed to supplier"
+                        required={itemForm.is_on_credit}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Amount Paid (₵)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={itemForm.amount_paid}
+                        onChange={(e) => setItemForm(prev => ({ ...prev, amount_paid: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 focus:outline-none"
+                        placeholder="Optional partial payment"
+                      />
+                    </div>
+                  </>
+                )}
+                {itemForm.is_customer_provided && !editingItemId && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Assign to Car Now</label>
+                      <select
+                        value={itemForm.assign_car_id}
+                        onChange={(e) => setItemForm(prev => ({ ...prev, assign_car_id: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+                      >
+                        <option value="">Select car (optional)</option>
+                        {cars.map((car) => (
+                          <option key={car.id} value={car.id}>
+                            {car.number_plate} - {car.customer_name || car.make || 'Car'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Assignment Quantity</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={itemForm.assign_quantity}
+                        onChange={(e) => setItemForm(prev => ({ ...prev, assign_quantity: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+                      />
+                    </div>
+                  </>
                 )}
               </div>
               <div className="flex gap-4">
@@ -455,10 +674,70 @@ export default function InventoryPage() {
                     className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Supplier Name</label>
+                  <input
+                    type="text"
+                    value={addStockForm.supplier_name}
+                    onChange={(e) => setAddStockForm(prev => ({ ...prev, supplier_name: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Supplier Phone</label>
+                  <input
+                    type="text"
+                    value={addStockForm.supplier_phone}
+                    onChange={(e) => setAddStockForm(prev => ({ ...prev, supplier_phone: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={addStockForm.is_on_credit}
+                      onChange={(e) => setAddStockForm(prev => ({ ...prev, is_on_credit: e.target.checked }))}
+                      className="w-4 h-4 border border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-700">Purchased on Credit</span>
+                  </label>
+                </div>
+                {addStockForm.is_on_credit && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Credit Amount (₵)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={addStockForm.credit_amount}
+                        onChange={(e) => setAddStockForm(prev => ({ ...prev, credit_amount: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Amount Paid (₵)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={addStockForm.amount_paid}
+                        onChange={(e) => setAddStockForm(prev => ({ ...prev, amount_paid: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
+                      />
+                    </div>
+                  </>
+                )}
                 <div className="flex gap-3 mt-3">
                   <button
                     onClick={async () => {
                       if (!addStockForm.inventory_item) return;
+                      if (addStockForm.is_on_credit && Number(addStockForm.amount_paid || 0) > Number(addStockForm.credit_amount || 0)) {
+                        setError('Amount paid cannot exceed credit amount.');
+                        return;
+                      }
+
                       setAddStockSubmitting(true);
                       try {
                         // Try backend add_stock endpoint first
@@ -466,6 +745,11 @@ export default function InventoryPage() {
                           quantity: Number(addStockForm.quantity || 0),
                           cost_price: addStockForm.cost_price ? Number(addStockForm.cost_price) : undefined,
                           selling_price: addStockForm.selling_price ? Number(addStockForm.selling_price) : undefined,
+                          supplier_name: addStockForm.supplier_name || undefined,
+                          supplier_phone: addStockForm.supplier_phone || undefined,
+                          is_on_credit: addStockForm.is_on_credit,
+                          credit_amount: addStockForm.is_on_credit ? Number(addStockForm.credit_amount || 0) : 0,
+                          amount_paid: addStockForm.is_on_credit ? Number(addStockForm.amount_paid || 0) : 0,
                         });
                       } catch (err) {
                         // Fallback: fetch the item and patch stock_quantity
@@ -482,7 +766,10 @@ export default function InventoryPage() {
                       // refresh
                       await fetchInventory();
                       setShowAddStockModal(false);
-                      setAddStockForm({ inventory_item: '', quantity: '', cost_price: '', selling_price: '' });
+                      setAddStockForm({
+                        inventory_item: '', quantity: '', cost_price: '', selling_price: '',
+                        supplier_name: '', supplier_phone: '', is_on_credit: false, credit_amount: '', amount_paid: ''
+                      });
                       setAddStockSubmitting(false);
                     }}
                     disabled={addStockSubmitting}
@@ -502,7 +789,7 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {inventory.length === 0 ? (
+        {sortedInventory.length === 0 ? (
           <div className="dashboard-section p-8 text-center text-gray-600">
             No inventory items yet
           </div>
@@ -521,7 +808,7 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody>
-                {inventory.map((item: any) => (
+                {sortedInventory.map((item: any) => (
                   <tr 
                     key={item.id} 
                     className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${item.is_on_credit ? 'bg-primary-50' : ''}`}
@@ -533,6 +820,7 @@ export default function InventoryPage() {
                         {item.stock_quantity}
                         {item.stock_quantity < (item.low_stock_threshold || item.minimum_stock_level || 10) && ' ⚠️'}
                       </span>
+                      <div className="text-xs text-gray-500">Min: {item.low_stock_threshold || item.minimum_stock_level || 0}</div>
                     </td>
                     <td className="px-4 py-2.5">{formatCedi(item.cost_price)}</td>
                     <td className="px-4 py-2.5">

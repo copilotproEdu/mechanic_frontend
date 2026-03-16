@@ -17,6 +17,7 @@ export default function InvoicesPage() {
   const [modalLoading, setModalLoading] = useState(false);
   const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
   const [modalPaymentMethods, setModalPaymentMethods] = useState('N/A');
+  const [systemSettings, setSystemSettings] = useState<any>(null);
 
   useEffect(() => {
     const user = localStorage.getItem('user');
@@ -33,8 +34,15 @@ export default function InvoicesPage() {
   useEffect(() => {
     const fetchInvoices = async () => {
       try {
-        const data = await api.invoices.list();
-        setInvoices(data.results || []);
+        const [invoiceData, settingsData] = await Promise.all([
+          api.invoices.list(),
+          api.settings.get().catch(() => null),
+        ]);
+        const data = invoiceData;
+        setInvoices(data.results || data || []);
+        if (settingsData) {
+          setSystemSettings(settingsData);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load invoices');
       } finally {
@@ -155,12 +163,12 @@ export default function InvoicesPage() {
   };
 
   const paymentDetails = [
-    'Brooks Mekaniks Limited Investment Bank',
-    '1136061074601',
-    'East legon Branch.',
-    'Momo',
-    '0243525167',
-    'Simon Mawuli Ocloo',
+    systemSettings?.bank_name || 'Bank Name Not Configured',
+    systemSettings?.bank_account || 'Bank Account Not Configured',
+    systemSettings?.company_address || 'Address Not Configured',
+    'Mobile Money',
+    systemSettings?.mobile_money_number || 'Mobile Money Number Not Configured',
+    systemSettings?.company_name || 'Company Name Not Configured',
   ];
 
   const handlePrintInvoice = async (invoiceRef: any) => {

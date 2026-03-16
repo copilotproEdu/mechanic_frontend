@@ -282,13 +282,7 @@ export default function CarDetailPage() {
     setRemovingAssignmentId(assignmentId);
     try {
       await api.carInventory.delete(assignmentId);
-
-      if (car?.inventory_assignments) {
-        setCar({
-          ...car,
-          inventory_assignments: car.inventory_assignments.filter((assignment: any) => assignment.id !== assignmentId),
-        });
-      }
+      await refreshCar();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to remove assigned item from invoice');
     } finally {
@@ -363,39 +357,36 @@ export default function CarDetailPage() {
     setActionLoading(true);
 
     try {
-      if (!inventoryForm.inventory_item) {
+      if (!inventoryForm.is_customer_provided && !inventoryForm.inventory_item) {
         setActionError('Select an inventory item');
         return;
       }
 
       const payload = {
         car: carId,
-        inventory_item: inventoryForm.inventory_item,
+        inventory_item: inventoryForm.inventory_item || null,
         quantity: Number(inventoryForm.quantity || 1),
-        cost_price: Number(inventoryForm.cost_price || 0),
-        selling_price: Number(inventoryForm.selling_price || 0),
+        cost_price: inventoryForm.is_customer_provided ? 0 : Number(inventoryForm.cost_price || 0),
+        selling_price: inventoryForm.is_customer_provided ? 0 : Number(inventoryForm.selling_price || 0),
         is_customer_provided: inventoryForm.is_customer_provided,
       };
 
       if (editingAssignmentId) {
-        const updated = await api.carInventory.update(editingAssignmentId, payload);
-        if (car) {
-          setCar({
-            ...car,
-            inventory_assignments: (car.inventory_assignments || []).map((a: any) => a.id === updated.id ? updated : a)
-          });
-        }
+        await api.carInventory.update(editingAssignmentId, payload);
         setEditingAssignmentId(null);
       } else {
-        const newAssignment = await api.carInventory.create(payload);
-        if (car) {
-          setCar({
-            ...car,
-            inventory_assignments: [...(car.inventory_assignments || []), newAssignment]
-          });
-        }
+        await api.carInventory.create(payload);
       }
+
+      await refreshCar();
       setShowInventoryForm(false);
+      setInventoryForm({
+        inventory_item: '',
+        quantity: '',
+        cost_price: '',
+        selling_price: '',
+        is_customer_provided: false,
+      });
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to assign inventory');
     } finally {
@@ -715,7 +706,7 @@ export default function CarDetailPage() {
             <div>
               <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">Car Details</p>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                {[car.year, car.make, car.model].filter(Boolean).join(' ')}{car.color && ` (${car.color})`}
+                {[car.year, car.make, car.model, car.trim].filter(Boolean).join(' ')}{car.color && ` (${car.color})`}
               </h2>
               <p className="text-sm text-gray-600 mt-1">Plate: {car.number_plate} • Mileage: {car.mileage} km</p>
               <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold capitalize ${getStatusStyle(car.status)}`}>
@@ -816,7 +807,7 @@ export default function CarDetailPage() {
                   <div className="space-y-3">
                     <div>
                       <span className="text-gray-600">Year/Make/Model:</span>
-                      <span className="ml-2 font-semibold">{[car.year, car.make, car.model].filter(Boolean).join(' ') || 'N/A'}</span>
+                      <span className="ml-2 font-semibold">{[car.year, car.make, car.model, car.trim].filter(Boolean).join(' ') || 'N/A'}</span>
                     </div>
                     <div>
                       <span className="text-gray-600">Plate:</span>
@@ -1143,12 +1134,7 @@ export default function CarDetailPage() {
                                       // Delete assignment
                                       try {
                                         await api.carInventory.delete(assignment.id);
-                                        if (car) {
-                                          setCar({
-                                            ...car,
-                                            inventory_assignments: (car.inventory_assignments || []).filter((a: any) => a.id !== assignment.id)
-                                          });
-                                        }
+                                        await refreshCar();
                                       } catch (err) {
                                         console.error('Failed to delete assignment', err);
                                       }
@@ -1213,11 +1199,12 @@ export default function CarDetailPage() {
                         }));
                       }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      disabled={inventoryForm.is_customer_provided}
                     >
                       <option value="">Select an item</option>
                       {inventoryItems.map((item) => (
                         <option key={item.id} value={item.id}>
-                          {item.name}
+                          {item.name} {item.stock_quantity !== undefined ? `(Stock: ${item.stock_quantity})` : ''}
                         </option>
                       ))}
                     </select>
@@ -1248,6 +1235,7 @@ export default function CarDetailPage() {
                           setInventoryForm((prev) => ({ ...prev, cost_price: e.target.value }))
                         }
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                        disabled={inventoryForm.is_customer_provided}
                       />
                     </div>
                     <div>
@@ -1260,6 +1248,7 @@ export default function CarDetailPage() {
                           setInventoryForm((prev) => ({ ...prev, selling_price: e.target.value }))
                         }
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                        disabled={inventoryForm.is_customer_provided}
                       />
                     </div>
                     <div className="flex items-center gap-2 mt-6">
@@ -1267,9 +1256,15 @@ export default function CarDetailPage() {
                         id="customerProvided"
                         type="checkbox"
                         checked={inventoryForm.is_customer_provided}
-                        onChange={(e) =>
-                          setInventoryForm((prev) => ({ ...prev, is_customer_provided: e.target.checked }))
-                        }
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setInventoryForm((prev) => ({
+                            ...prev,
+                            is_customer_provided: checked,
+                            cost_price: checked ? '0' : prev.cost_price,
+                            selling_price: checked ? '0' : prev.selling_price,
+                          }));
+                        }}
                       />
                       <label htmlFor="customerProvided" className="text-sm text-gray-700">
                         Customer Provided

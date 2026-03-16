@@ -13,6 +13,7 @@ interface FormData {
   carPlate: string;
   carMake: string;
   carModel: string;
+  carTrim: string;
   carColor: string;
   carMileage: string;
   carYear: string;
@@ -32,6 +33,7 @@ export default function CarIntakePage() {
     carPlate: '',
     carMake: '',
     carModel: '',
+    carTrim: '',
     carColor: '',
     carMileage: '',
     carYear: '',
@@ -47,6 +49,7 @@ export default function CarIntakePage() {
     const lastNames = ['Mensah', 'Boateng', 'Owusu', 'Abiola', 'Tetteh', 'Asare'];
     const makes = ['Toyota', 'Honda', 'Hyundai', 'Nissan', 'Kia', 'Ford'];
     const models = ['Corolla', 'Civic', 'Elantra', 'Altima', 'Sportage', 'Focus'];
+    const trims = ['Base', 'LE', 'SE', 'Sport', 'Touring', 'Limited'];
     const colors = ['Red', 'Blue', 'Black', 'White', 'Silver', 'Gray', 'Green', 'Yellow'];
     const reasons = [
       'Routine service and brake inspection.',
@@ -59,6 +62,7 @@ export default function CarIntakePage() {
     const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
     const make = makes[Math.floor(Math.random() * makes.length)];
     const model = models[Math.floor(Math.random() * models.length)];
+    const trim = trims[Math.floor(Math.random() * trims.length)];
     const color = colors[Math.floor(Math.random() * colors.length)];
     const mileage = String(20000 + Math.floor(Math.random() * 120000));
     const year = String(2010 + Math.floor(Math.random() * 12));
@@ -72,6 +76,7 @@ export default function CarIntakePage() {
       carPlate: plate,
       carMake: make,
       carModel: model,
+      carTrim: trim,
       carYear: year,
       carColor: color,
       carMileage: mileage,
@@ -92,9 +97,39 @@ export default function CarIntakePage() {
     }
 
     const loadCatalog = async () => {
+      const getNextPage = (nextUrl?: string | null) => {
+        if (!nextUrl) return null;
+        try {
+          const parsed = new URL(nextUrl);
+          const page = parsed.searchParams.get('page');
+          return page ? Number(page) : null;
+        } catch {
+          return null;
+        }
+      };
+
       try {
-        const makesResponse = await api.vehicleMakes.list();
-        const makes = makesResponse?.results || makesResponse || [];
+        const allMakes: any[] = [];
+        let page = 1;
+        let hasNext = true;
+
+        while (hasNext) {
+          const makesResponse = await api.vehicleMakes.list({ page });
+          const pageItems = makesResponse?.results || makesResponse || [];
+
+          if (Array.isArray(pageItems)) {
+            allMakes.push(...pageItems);
+          }
+
+          const nextPage = getNextPage(makesResponse?.next);
+          if (!nextPage || nextPage === page) {
+            hasNext = false;
+          } else {
+            page = nextPage;
+          }
+        }
+
+        const makes = allMakes;
         if (Array.isArray(makes) && makes.length > 0) {
           const currentYear = new Date().getFullYear();
           const years = Array.from({ length: currentYear - 2004 }, (_, i) => String(2005 + i));
@@ -161,6 +196,7 @@ export default function CarIntakePage() {
         number_plate: formData.carPlate,
         make: formData.carMake,
         model: formData.carModel,
+        trim: formData.carTrim,
         year: formData.carYear || undefined,
         color: formData.carColor,
         mileage: parseInt(formData.carMileage),
@@ -272,18 +308,48 @@ export default function CarIntakePage() {
                     onChange={async (v) => {
                       setFormData(prev => ({ ...prev, carMake: v, carModel: '' }));
                       const selected = makesData.find(m => m.make === v);
+                      const fallbackSelected = makesData.find((m) => m.make?.toLowerCase() === v.toLowerCase());
                       if (selected?.id) {
                         try {
-                          const modelsResponse = await api.vehicleModels.list({ make: selected.id });
-                          const models = modelsResponse?.results || modelsResponse || [];
+                          const getNextPage = (nextUrl?: string | null) => {
+                            if (!nextUrl) return null;
+                            try {
+                              const parsed = new URL(nextUrl);
+                              const page = parsed.searchParams.get('page');
+                              return page ? Number(page) : null;
+                            } catch {
+                              return null;
+                            }
+                          };
+
+                          const allModels: any[] = [];
+                          let page = 1;
+                          let hasNext = true;
+
+                          while (hasNext) {
+                            const modelsResponse = await api.vehicleModels.list({ make: selected.id, page });
+                            const pageItems = modelsResponse?.results || modelsResponse || [];
+                            if (Array.isArray(pageItems)) {
+                              allModels.push(...pageItems);
+                            }
+
+                            const nextPage = getNextPage(modelsResponse?.next);
+                            if (!nextPage || nextPage === page) {
+                              hasNext = false;
+                            } else {
+                              page = nextPage;
+                            }
+                          }
+
+                          const models = allModels;
                           setModelOptions((models || []).map((m: any) => ({ value: m.name || m.value || '' })).filter((m: any) => m.value));
                         } catch {
                           setModelOptions((selected?.models || []).map((m:string) => ({ value: m })));
                         }
                       } else {
-                        setModelOptions((selected?.models || []).map((m:string) => ({ value: m })));
+                        setModelOptions((fallbackSelected?.models || selected?.models || []).map((m:string) => ({ value: m })));
                       }
-                      setYearOptions((selected?.years || []).map((y:string) => ({ value: y })));
+                      setYearOptions((selected?.years || fallbackSelected?.years || []).map((y:string) => ({ value: y })));
                     }}
                     options={(makesData || []).map(m => ({ value: m.make }))}
                     placeholder="Select or type make"
@@ -301,6 +367,21 @@ export default function CarIntakePage() {
                     options={modelOptions}
                     placeholder="Select or type model"
                     allowFreeText={true}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="carTrim" className="block text-sm font-medium text-gray-700 mb-2">
+                    Trim (Optional)
+                  </label>
+                  <input
+                    id="carTrim"
+                    name="carTrim"
+                    type="text"
+                    value={formData.carTrim}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-700 focus:ring-2 focus:ring-primary-200"
+                    placeholder="e.g., LE, Sport, Touring"
                   />
                 </div>
 
