@@ -143,8 +143,20 @@ export default function InventoryPage() {
     setError('');
 
     try {
+      const selectedCar = cars.find((car) => String(car.id) === String(itemForm.assign_car_id));
+      const selectedCustomerName = String(selectedCar?.customer_name || '').trim();
       const creditAmount = Number(itemForm.credit_amount || 0);
       const amountPaid = Number(itemForm.amount_paid || 0);
+
+      if (!editingItemId && itemForm.is_customer_provided && !itemForm.assign_car_id) {
+        setError('Select a car for customer-provided item assignment.');
+        return;
+      }
+
+      if (!editingItemId && itemForm.is_customer_provided && !selectedCustomerName) {
+        setError('Selected car does not have a customer name.');
+        return;
+      }
 
       if (itemForm.is_on_credit && amountPaid > creditAmount) {
         setError('Amount paid cannot exceed credit amount.');
@@ -154,7 +166,7 @@ export default function InventoryPage() {
       const itemData = {
         name: itemForm.name,
         category: itemForm.category,
-        supplier_name: itemForm.is_customer_provided ? '' : itemForm.supplier_name,
+        supplier_name: itemForm.is_customer_provided ? selectedCustomerName : itemForm.supplier_name,
         supplier_phone: itemForm.is_customer_provided ? '' : itemForm.supplier_phone,
         stock_quantity: Number(itemForm.stock_quantity),
         cost_price: itemForm.is_customer_provided ? 0 : Number(itemForm.cost_price),

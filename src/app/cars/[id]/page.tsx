@@ -318,6 +318,17 @@ export default function CarDetailPage() {
     }
   };
 
+  const normalizeName = (value: string | null | undefined) => String(value || '').trim().toLowerCase();
+
+  const assignableInventoryItems = inventoryItems.filter((item) => {
+    const supplierName = normalizeName(item?.supplier_name);
+    const isCustomerProvidedInventory = Number(item?.cost_price || 0) === 0 && Number(item?.selling_price || 0) === 0 && !!supplierName;
+    if (!isCustomerProvidedInventory) {
+      return true;
+    }
+    return supplierName === normalizeName(car?.customer_name);
+  });
+
   const handleCreateDiagnostics = async (event: FormEvent) => {
     event.preventDefault();
     setActionError('');
@@ -1190,7 +1201,7 @@ export default function CarDetailPage() {
                       value={inventoryForm.inventory_item}
                       onChange={(e) => {
                         const itemId = e.target.value;
-                        const selected = inventoryItems.find((item) => String(item.id) === itemId);
+                        const selected = assignableInventoryItems.find((item) => String(item.id) === itemId);
                         setInventoryForm((prev) => ({
                           ...prev,
                           inventory_item: itemId,
@@ -1202,7 +1213,7 @@ export default function CarDetailPage() {
                       disabled={inventoryForm.is_customer_provided}
                     >
                       <option value="">Select an item</option>
-                      {inventoryItems.map((item) => (
+                      {assignableInventoryItems.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name} {item.stock_quantity !== undefined ? `(Stock: ${item.stock_quantity})` : ''}
                         </option>
