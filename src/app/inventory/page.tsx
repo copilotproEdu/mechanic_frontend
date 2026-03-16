@@ -184,17 +184,6 @@ export default function InventoryPage() {
         createdOrUpdated = await api.inventory.create(itemData);
       }
 
-      if (!editingItemId && itemForm.is_customer_provided && itemForm.assign_car_id) {
-        await api.carInventory.create({
-          car: itemForm.assign_car_id,
-          inventory_item: createdOrUpdated?.id,
-          quantity: Number(itemForm.assign_quantity || 1),
-          cost_price: 0,
-          selling_price: 0,
-          is_customer_provided: true,
-        });
-      }
-
       setShowForm(false);
       setEditingItemId(null);
       setItemForm({
